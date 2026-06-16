@@ -27,7 +27,8 @@
     #load-status{font-size:12px;color:var(--muted);margin-left:auto;}
     #load-status.ready{color:var(--ok);}
     #load-status.error{color:var(--danger);}
-    #settings-btn{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:4px;-webkit-tap-highlight-color:transparent;flex-shrink:0;}
+    #settings-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:13px;font-weight:700;cursor:pointer;padding:7px 12px;border-radius:20px;-webkit-tap-highlight-color:transparent;flex-shrink:0;white-space:nowrap;letter-spacing:.2px;}
+    #settings-btn:active{border-color:var(--accent);color:var(--accent);}
     #settings-btn:active{color:var(--text);}
 
     #map-wrap{flex:1;position:relative;}
@@ -49,13 +50,14 @@
     #settings-modal.open{display:flex;}
     #settings-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;width:100%;max-width:320px;display:flex;flex-direction:column;gap:16px;}
     #settings-card h2{font-size:15px;font-weight:700;color:var(--text);}
-    .settings-row{display:flex;flex-direction:column;gap:6px;}
-    .settings-row label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
-    .settings-row input{padding:11px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:16px;outline:none;-webkit-appearance:none;}
-    .settings-row input:focus{border-color:var(--accent);}
+    .settings-row{display:flex;flex-direction:column;gap:8px;}
+    .settings-row label{font-size:13px;font-weight:600;color:var(--text);letter-spacing:.2px;}
+    .settings-row input[type=number]{width:100%;padding:14px 12px;background:var(--surface2);border:2px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:22px;font-weight:700;outline:none;-webkit-appearance:none;transition:border-color .15s;}
+    .settings-row input[type=number]:focus{border-color:var(--accent);}
+    .settings-row input[type=number]::placeholder{color:var(--border);font-weight:400;}
     .settings-hint{font-size:11px;color:var(--muted);}
-    .settings-range-row{display:flex;align-items:center;justify-content:space-between;}
-    .settings-range-row span{font-size:13px;color:var(--accent);font-weight:700;min-width:40px;text-align:right;}
+    .settings-range-row{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+    .settings-range-row span{font-size:15px;color:var(--accent);font-weight:700;min-width:44px;text-align:right;}
 
     /* Tabs */
     #tabs{display:flex;gap:4px;background:var(--surface2);border-radius:var(--radius);padding:4px;flex-shrink:0;}
@@ -160,7 +162,7 @@
   <header id="header">
     <div id="logo">⛽ Pure<span>Gas</span></div>
     <div id="load-status">Loading…</div>
-    <button id="settings-btn" title="Vehicle Settings">⚙️</button>
+    <button id="settings-btn" title="Set MPG &amp; Tank Size">⛽ MPG</button>
   </header>
 
   <div id="map-wrap">
@@ -175,25 +177,42 @@
     <!-- Settings modal -->
     <div id="settings-modal">
       <div id="settings-card">
-        <h2>⚙️ Vehicle Settings</h2>
+        <div id="settings-welcome" style="display:none">
+          <div style="font-size:28px;text-align:center;margin-bottom:8px">⛽</div>
+          <div style="font-size:17px;font-weight:700;text-align:center;color:var(--text);margin-bottom:6px">Welcome to PureGas Finder</div>
+          <div style="font-size:13px;color:var(--muted);text-align:center;line-height:1.5">Enter your vehicle details so the app can suggest fuel stops along your route.</div>
+          <div style="height:1px;background:var(--border);margin:16px 0"></div>
+        </div>
+        <h2 id="settings-title">⚙️ Vehicle Settings</h2>
         <div class="settings-row">
-          <label>Fuel Economy (MPG)</label>
-          <input type="number" id="set-mpg" placeholder="e.g. 25" min="1" max="150" inputmode="decimal" />
+          <label>Fuel Economy</label>
+          <div style="position:relative">
+            <input type="number" id="set-mpg" placeholder="25" min="1" max="150" inputmode="decimal" style="padding-right:48px" />
+            <span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--muted);pointer-events:none">MPG</span>
+          </div>
         </div>
         <div class="settings-row">
-          <label>Tank Size (gallons)</label>
-          <input type="number" id="set-tank" placeholder="e.g. 15" min="1" max="150" inputmode="decimal" />
+          <label>Tank Size</label>
+          <div style="position:relative">
+            <input type="number" id="set-tank" placeholder="15" min="1" max="150" inputmode="decimal" style="padding-right:72px" />
+            <span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--muted);pointer-events:none">gallons</span>
+          </div>
+        </div>
+        <div id="range-preview" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px">Estimated Range</div>
+          <div style="font-size:28px;font-weight:800;color:var(--accent)" id="range-preview-full">— mi</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px" id="range-preview-usable">Usable (at 25% reserve): — mi</div>
         </div>
         <div class="settings-row">
-          <label>Reserve buffer — stop when tank hits</label>
+          <label>Stop when tank reaches</label>
           <div class="settings-range-row">
             <input type="range" id="set-reserve" min="5" max="40" step="5" style="flex:1;accent-color:var(--accent);" />
             <span id="reserve-label">25%</span>
           </div>
-          <div class="settings-hint" id="range-hint">Full range: — mi &nbsp;|&nbsp; Usable: — mi</div>
+          <div class="settings-hint" id="range-hint">Enter MPG and tank size to see your range</div>
         </div>
-        <button class="btn btn-accent" id="settings-save-btn">Save</button>
-        <button class="btn btn-ghost" id="settings-cancel-btn">Cancel</button>
+        <button class="btn btn-accent" id="settings-save-btn">Save Vehicle</button>
+        <button class="btn btn-ghost" id="settings-cancel-btn">Skip for now</button>
       </div>
     </div>
 
@@ -361,6 +380,10 @@ function loadStations(){
     document.getElementById('load-status').textContent=`✓ ${stations.length.toLocaleString()}`;
     document.getElementById('load-status').className='ready';
     renderClusteredMarkers(stations);
+    // Auto-open settings on first visit
+    if(!localStorage.getItem('puregas_vehicle')){
+      setTimeout(()=>openSettings(true),600);
+    }
     const b=new google.maps.LatLngBounds();
     stations.forEach(s=>b.extend({lat:s.lat,lng:s.lng}));
     map.fitBounds(b);
@@ -387,6 +410,8 @@ function setupEvents(){
   document.getElementById('settings-save-btn').addEventListener('click',saveSettingsFromModal);
   document.getElementById('settings-cancel-btn').addEventListener('click',closeSettings);
   document.getElementById('set-reserve').addEventListener('input',updateReserveLabel);
+  document.getElementById('set-mpg').addEventListener('input',updateRangePreview);
+  document.getElementById('set-tank').addEventListener('input',updateRangePreview);
 }
 
 function openPanel(){document.getElementById('panel').classList.add('open');document.getElementById('panel-overlay').classList.add('visible');}
@@ -401,25 +426,41 @@ function switchTab(tab){
 }
 
 // ── SETTINGS MODAL ────────────────────────────────────────────────────────────
-function openSettings(){
+function openSettings(firstTime){
+  const isFirst=firstTime||(!vehicle.mpg||!vehicle.tank);
+  document.getElementById('settings-welcome').style.display=isFirst?'block':'none';
+  document.getElementById('settings-title').style.display=isFirst?'none':'block';
+  document.getElementById('settings-cancel-btn').textContent=isFirst?'Skip for now':'Cancel';
   document.getElementById('set-mpg').value=vehicle.mpg||'';
   document.getElementById('set-tank').value=vehicle.tank||'';
   document.getElementById('set-reserve').value=vehicle.reserve||25;
   updateReserveLabel();
+  updateRangePreview();
   document.getElementById('settings-modal').classList.add('open');
+  // Focus MPG field after modal opens
+  setTimeout(()=>document.getElementById('set-mpg').focus(),300);
 }
 function closeSettings(){ document.getElementById('settings-modal').classList.remove('open'); }
 function updateReserveLabel(){
   const r=parseInt(document.getElementById('set-reserve').value);
   document.getElementById('reserve-label').textContent=r+'%';
+  updateRangePreview();
+}
+function updateRangePreview(){
+  const r=parseInt(document.getElementById('set-reserve').value)||25;
   const mpg=parseFloat(document.getElementById('set-mpg').value)||0;
   const tank=parseFloat(document.getElementById('set-tank').value)||0;
+  const preview=document.getElementById('range-preview');
   if(mpg&&tank){
-    const full=mpg*tank;
-    const usable=full*(1-r/100);
-    document.getElementById('range-hint').textContent=`Full range: ${Math.round(full)} mi  |  Usable: ${Math.round(usable)} mi`;
+    const full=Math.round(mpg*tank);
+    const usable=Math.round(full*(1-r/100));
+    document.getElementById('range-preview-full').textContent=full+' mi';
+    document.getElementById('range-preview-usable').textContent=`Usable (at ${r}% reserve): ${usable} mi`;
+    preview.style.display='block';
+    document.getElementById('range-hint').textContent=`Tank hits ${r}% at ${usable} mi — we'll suggest a stop before then`;
   } else {
-    document.getElementById('range-hint').textContent='Enter MPG and tank size above';
+    preview.style.display='none';
+    document.getElementById('range-hint').textContent='Enter MPG and tank size to see your range';
   }
 }
 function saveSettingsFromModal(){
