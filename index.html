@@ -298,7 +298,7 @@
 
 <script>
 // ─── STATE ──────────────────────────────────────────────────────────────────
-let map, infoWindow, directionsService, directionsRenderer, markerClusterer;
+let map, infoWindow, directionsService, directionsRenderer, clustererInstance;
 let userMarker = null, userLatLng = null;
 let stations = [];        // { name, lat, lng } — raw data only, NO markers until needed
 let activeMarkers = [];   // markers currently on map
@@ -438,7 +438,7 @@ function parseKML(xml) {
 
 // ─── MARKER CLUSTER ──────────────────────────────────────────────────────────
 function clearAllMarkers() {
-  if (markerClusterer) { markerClusterer.clearMarkers(); markerClusterer = null; }
+  if (clustererInstance) { clustererInstance.clearMarkers(); clustererInstance = null; }
   activeMarkers.forEach(m => m.setMap(null));
   activeMarkers = [];
 }
@@ -474,7 +474,7 @@ function renderClusteredMarkers(stationList, highlightSet) {
 
   // MarkerClusterer from CDN
   if (window.markerClusterer) {
-    markerClusterer = new window.markerClusterer.MarkerClusterer({
+    clustererInstance = new window.markerClusterer.MarkerClusterer({
       map,
       markers: activeMarkers,
       renderer: {
