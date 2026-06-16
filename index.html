@@ -735,6 +735,7 @@ function calcRoute(){
   routeDestination=ei;
   routeActive=true;
   viewportCullingEnabled=false;
+  document.getElementById('zoom-overlay').classList.add('hidden');
   showStatus('Calculating route…',8000);
   directionsService.route({origin,destination:ei,travelMode:google.maps.TravelMode.DRIVING},(result,status)=>{
     if(status!=='OK'){showStatus('Route not found');return;}
