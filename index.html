@@ -391,9 +391,8 @@ function darkMapStyle(){return[
 // ── LOAD STATIONS ─────────────────────────────────────────────────────────────
 // Octane filter — returns true if station carries at least one selected grade
 function stationMatchesOctane(s){
-  const wanted=vehicle.octanes||DEFAULT_SETTINGS.octanes;
-  if(!wanted.length) return true;
-  if(!s.grades||!s.grades.length) return true; // no grade data, show it
+  const wanted=(vehicle.octanes&&vehicle.octanes.length)?vehicle.octanes:DEFAULT_SETTINGS.octanes;
+  if(!s.grades||!s.grades.length) return false; // no grade data — exclude
   return s.grades.some(g=>wanted.includes(g));
 }
 
