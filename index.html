@@ -137,6 +137,24 @@
     .close-btn:active{color:var(--text);}
     .empty{text-align:center;color:var(--muted);font-size:13px;padding:32px 0;}
     .section-label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);padding:4px 0 2px;}
+    .route-option{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:13px;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+    .route-option.active-route{border-color:var(--accent);background:#1f1a0f;}
+    .route-option-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+    .route-option-label{font-size:13px;font-weight:700;color:var(--text);}
+    .route-option-badge{font-size:11px;background:var(--accent);color:#000;padding:2px 8px;border-radius:10px;font-weight:700;}
+    .route-option-meta{font-size:12px;color:var(--muted);}
+    .route-option-stations{font-size:12px;color:var(--accent);margin-top:3px;}
+    .btn-use-route{width:100%;padding:13px;background:var(--accent);color:#000;border:none;border-radius:var(--radius);font-size:15px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+    .btn-use-route:active{opacity:.75;}
+    .route-option{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:13px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:border-color .15s,background .15s;}
+    .route-option:active{background:#1f1f26;}
+    .route-option.active-route{border-color:var(--accent);background:#1f1a0f;}
+    .route-option-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+    .route-option-label{font-size:13px;font-weight:700;color:var(--text);}
+    .route-option-badge{font-size:11px;background:var(--accent);color:#000;padding:2px 8px;border-radius:10px;font-weight:700;}
+    .route-option-meta{font-size:12px;color:var(--muted);}
+    .route-option-stations{font-size:12px;color:var(--accent);margin-top:3px;}
+    .btn-use-route{width:100%;padding:11px;background:var(--accent);color:#000;border:none;border-radius:var(--radius);font-size:14px;font-weight:700;cursor:pointer;margin-top:4px;-webkit-tap-highlight-color:transparent;}
 
     /* Loading overlay */
     #loading-overlay{position:absolute;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:200;gap:16px;}
@@ -324,8 +342,11 @@ let boundsChangeTimer = null;
 let routeActive = false;
 let routePath = [];
 let routeDistances = [];
-let routeDestination = ''; // cumulative miles along route path
+let routeDestination = '';
 let activeTab = 'nearest';
+let allRoutes = [];
+let altRenderers = [];
+let selectedRouteIdx = 0;
 
 // ── VEHICLE SETTINGS ─────────────────────────────────────────────────────────
 const DEFAULT_SETTINGS = { mpg: 25, tank: 15, reserve: 25, minOctane: 87 };
@@ -726,9 +747,8 @@ function calcRoute(){
   if(!ei){showStatus('Enter a destination');return;}
   const origin=si||userLatLng;
   if(!origin){showStatus('Enter a start or use GPS');return;}
-  // Prompt to set vehicle if not set
   if(!vehicle.mpg||!vehicle.tank){
-    showStatus('Set vehicle MPG & tank first ⚙️',4000);
+    showStatus('Set vehicle MPG & tank first ⛽',4000);
     openSettings();
     return;
   }
@@ -736,31 +756,116 @@ function calcRoute(){
   routeActive=true;
   viewportCullingEnabled=false;
   document.getElementById('zoom-overlay').classList.add('hidden');
-  showStatus('Calculating route…',8000);
-  directionsService.route({origin,destination:ei,travelMode:google.maps.TravelMode.DRIVING},(result,status)=>{
+  showStatus('Calculating routes…',8000);
+  directionsService.route({
+    origin,destination:ei,
+    travelMode:google.maps.TravelMode.DRIVING,
+    provideRouteAlternatives:true
+  },(result,status)=>{
     if(status!=='OK'){showStatus('Route not found');return;}
-    directionsRenderer.setDirections(result);
-    // Build path + cumulative distance array
+    allRoutes=result.routes;
+    selectedRouteIdx=0;
+    drawAllRoutes(result);
+    showRoutePicker(result);
+    document.getElementById('route-clear-btn').style.display='block';
+    showStatus(`${allRoutes.length} route${allRoutes.length>1?'s':''} found`);
+  });
+}
+
+function drawAllRoutes(result){
+  altRenderers.forEach(r=>r.setMap(null));
+  altRenderers=[];
+  directionsRenderer.setMap(null);
+  result.routes.forEach((route,i)=>{
+    const r=new google.maps.DirectionsRenderer({
+      directions:result,routeIndex:i,
+      suppressMarkers:true,preserveViewport:i>0,
+      polylineOptions:{
+        strokeColor:i===0?'#f5a623':'#4a4a5a',
+        strokeWeight:i===0?5:3,
+        strokeOpacity:i===0?0.9:0.5
+      }
+    });
+    r.setMap(map);
+    altRenderers.push(r);
+  });
+}
+
+function selectRoute(idx){
+  selectedRouteIdx=idx;
+  altRenderers.forEach((r,i)=>{
+    r.setOptions({polylineOptions:{
+      strokeColor:i===idx?'#f5a623':'#4a4a5a',
+      strokeWeight:i===idx?5:3,
+      strokeOpacity:i===idx?0.9:0.5
+    }});
+  });
+  document.querySelectorAll('.route-option').forEach((el,i)=>el.classList.toggle('active-route',i===idx));
+}
+
+function showRoutePicker(result){
+  const list=document.getElementById('results-route');
+  list.innerHTML='';list.className='';
+  document.getElementById('range-summary').classList.remove('visible');
+  const corridorMiles=parseFloat(document.getElementById('corridor-miles').value);
+
+  const lbl=document.createElement('div');
+  lbl.className='section-label';
+  lbl.textContent='Choose a Route';
+  list.appendChild(lbl);
+
+  result.routes.forEach((route,i)=>{
+    const leg=route.legs[0];
+    // Quick station count — sample every 10th path point for speed
+    const pts=[];
+    route.legs.forEach(l=>l.steps.forEach(s=>s.path.forEach(p=>pts.push(p))));
+    const sample=pts.filter((_,j)=>j%10===0);
+    let stCount=0;
+    stations.forEach(s=>{
+      if(!stationMatchesOctane(s))return;
+      for(const pt of sample){
+        if(haversineMiles(s.lat,s.lng,pt.lat(),pt.lng())<=corridorMiles){stCount++;break;}
+      }
+    });
+
+    const item=document.createElement('div');
+    item.className='route-option'+(i===0?' active-route':'');
+    item.innerHTML=`
+      <div class="route-option-header">
+        <span class="route-option-label">Route ${i+1}${i===0?' — Fastest':''}</span>
+        ${i===0?'<span class="route-option-badge">Best</span>':''}
+      </div>
+      <div class="route-option-meta">${leg.distance.text} &nbsp;·&nbsp; ${leg.duration.text}</div>
+      <div class="route-option-stations">~${stCount} stations within ${corridorMiles} mi</div>
+    `;
+    item.addEventListener('click',()=>{
+      selectRoute(i);
+      const b=new google.maps.LatLngBounds();
+      route.legs.forEach(l=>{b.extend(l.start_location);b.extend(l.end_location);});
+      map.fitBounds(b,{padding:40});
+    });
+    list.appendChild(item);
+  });
+
+  const useBtn=document.createElement('button');
+  useBtn.className='btn-use-route';
+  useBtn.textContent='Use This Route →';
+  useBtn.addEventListener('click',()=>{
+    const route=result.routes[selectedRouteIdx];
+    const corridorMiles=parseFloat(document.getElementById('corridor-miles').value);
     routePath=[];routeDistances=[];
     let cumulative=0;
-    result.routes[0].legs.forEach(leg=>{
-      leg.steps.forEach(step=>{
-        step.path.forEach((pt,i)=>{
-          if(routePath.length>0){
-            const prev=routePath[routePath.length-1];
-            cumulative+=haversineMiles(prev.lat(),prev.lng(),pt.lat(),pt.lng());
-          }
-          routePath.push(pt);
-          routeDistances.push(cumulative);
-        });
-      });
-    });
-    const totalMiles=routeDistances[routeDistances.length-1]||0;
-    const corridorMiles=parseFloat(document.getElementById('corridor-miles').value);
-    showRouteStations(corridorMiles,totalMiles);
-    document.getElementById('route-clear-btn').style.display='block';
-    showStatus('Route loaded');
+    route.legs.forEach(leg=>leg.steps.forEach(step=>step.path.forEach((pt)=>{
+      if(routePath.length>0){
+        const prev=routePath[routePath.length-1];
+        cumulative+=haversineMiles(prev.lat(),prev.lng(),pt.lat(),pt.lng());
+      }
+      routePath.push(pt);routeDistances.push(cumulative);
+    })));
+    showRouteStations(corridorMiles,routeDistances[routeDistances.length-1]||0);
+    showStatus('Route confirmed');
   });
+  list.appendChild(useBtn);
 }
 
 // ── ROUTE STATIONS + SUGGESTED STOPS ─────────────────────────────────────────
@@ -886,7 +991,11 @@ function showRouteStations(corridorMiles,totalMiles){
 }
 
 function clearRoute(){
-  directionsRenderer.setDirections({routes:[]});
+  altRenderers.forEach(r=>r.setMap(null));
+  altRenderers=[];
+  directionsRenderer.setMap(null);
+  directionsRenderer.setMap(map);
+  allRoutes=[];selectedRouteIdx=0;
   routePath=[];routeDistances=[];routeDestination='';
   routeActive=false;
   viewportCullingEnabled=true;
