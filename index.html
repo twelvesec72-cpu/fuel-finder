@@ -368,11 +368,10 @@ function initMap(){
   directionsRenderer.setMap(map);
   setupEvents();
   loadStations();
-  // Viewport culling — rebuild clusterer on pan/zoom
-  map.addListener('bounds_changed', ()=>{
+  // Re-cull after map settles (idle fires after pan AND zoom stop)
+  map.addListener('idle', ()=>{
     if(!viewportCullingEnabled||routeActive||!stations.length) return;
-    clearTimeout(boundsChangeTimer);
-    boundsChangeTimer=setTimeout(renderViewportMarkers, 300);
+    renderViewportMarkers();
   });
 }
 
@@ -388,16 +387,57 @@ function renderViewportMarkers(){
   if(!map||!stations.length) return;
   const bounds=map.getBounds();
   if(!bounds) return;
-  // Pad bounds by ~20% to pre-load pins just outside viewport
   const ne=bounds.getNorthEast(), sw=bounds.getSouthWest();
-  const latPad=(ne.lat()-sw.lat())*0.2;
-  const lngPad=(ne.lng()-sw.lng())*0.2;
-  const visible=stations.filter(s=>
+  // 50% padding buffer so pins don't pop in while panning
+  const latPad=(ne.lat()-sw.lat())*0.5;
+  const lngPad=(ne.lng()-sw.lng())*0.5;
+  const minLat=sw.lat()-latPad, maxLat=ne.lat()+latPad;
+  const minLng=sw.lng()-lngPad, maxLng=ne.lng()+lngPad;
+
+  const inView=new Set(stations.filter(s=>
     stationMatchesOctane(s)&&
-    s.lat>=sw.lat()-latPad&&s.lat<=ne.lat()+latPad&&
-    s.lng>=sw.lng()-lngPad&&s.lng<=ne.lng()+lngPad
-  );
-  renderClusteredMarkers(visible);
+    s.lat>=minLat&&s.lat<=maxLat&&
+    s.lng>=minLng&&s.lng<=maxLng
+  ));
+
+  // Only add markers that aren't already on map
+  const toAdd=[...inView].filter(s=>!s._marker||s._marker.map===null);
+  // Only remove markers that scrolled out of the padded bounds
+  const toRemove=activeMarkers.filter(m=>m._station&&!inView.has(m._station));
+
+  // Remove out-of-view markers
+  toRemove.forEach(m=>{
+    m.map=null;
+    activeMarkers.splice(activeMarkers.indexOf(m),1);
+    if(clustererInstance) clustererInstance.removeMarker(m);
+  });
+
+  // Add new in-view markers
+  const newMarkers=toAdd.map(s=>{
+    const m=makeMarker(s,false);
+    m._station=s;
+    m.map=map;
+    s._marker=m;
+    return m;
+  });
+
+  if(newMarkers.length){
+    activeMarkers.push(...newMarkers);
+    if(clustererInstance) clustererInstance.addMarkers(newMarkers);
+    else if(window.markerClusterer){
+      clustererInstance=new window.markerClusterer.MarkerClusterer({
+        map,markers:activeMarkers,
+        renderer:{render({count,position}){
+          const sz=count<10?34:count<50?40:count<200?46:52;
+          const fs=sz<40?11:sz<46?12:13;
+          const el=document.createElement('div');
+          el.style.cssText=`width:${sz}px;height:${sz}px;border-radius:50%;background:#f5a623;border:2px solid #0d0d0f;display:flex;align-items:center;justify-content:center;font-family:system-ui;font-size:${fs}px;font-weight:700;color:#000;`;
+          el.textContent=count>999?'1k+':count;
+          return new google.maps.marker.AdvancedMarkerElement({position,content:el,zIndex:1000});
+        }}
+      });
+    }
+  }
 }
 
 function loadStations(){
