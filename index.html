@@ -12,218 +12,147 @@
   <link rel="apple-touch-icon" href="icon-192.png" />
   <style>
     :root {
-      --bg:        #0d0d0f;
-      --surface:   #18181c;
-      --surface2:  #222228;
-      --border:    #2e2e38;
-      --accent:    #f5a623;
-      --danger:    #e05555;
-      --ok:        #4caf7d;
-      --text:      #f0eff4;
-      --muted:     #8a8a9a;
-      --radius:    12px;
-      --panel-w:   340px;
-      --header-h:  56px;
-      --safe-bottom: env(safe-area-inset-bottom, 0px);
-      --safe-top:    env(safe-area-inset-top, 0px);
+      --bg:#0d0d0f; --surface:#18181c; --surface2:#222228; --border:#2e2e38;
+      --accent:#f5a623; --danger:#e05555; --ok:#4caf7d; --text:#f0eff4; --muted:#8a8a9a;
+      --radius:12px; --panel-w:340px; --header-h:56px;
+      --safe-bottom:env(safe-area-inset-bottom,0px); --safe-top:env(safe-area-inset-top,0px);
     }
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; overflow: hidden; font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); }
-    #app { display: flex; flex-direction: column; height: 100%; padding-top: var(--safe-top); }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    html,body{height:100%;overflow:hidden;font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);}
+    #app{display:flex;flex-direction:column;height:100%;padding-top:var(--safe-top);}
 
-    #header {
-      height: var(--header-h); background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      display: flex; align-items: center; padding: 0 16px; gap: 10px;
-      z-index: 100; flex-shrink: 0;
-    }
-    #logo { font-size: 17px; font-weight: 700; letter-spacing: -0.5px; color: var(--accent); white-space: nowrap; }
-    #logo span { color: var(--text); font-weight: 300; }
-    #load-status { font-size: 12px; color: var(--muted); margin-left: auto; }
-    #load-status.ready { color: var(--ok); }
-    #load-status.error { color: var(--danger); }
+    #header{height:var(--header-h);background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:10px;z-index:100;flex-shrink:0;}
+    #logo{font-size:17px;font-weight:700;letter-spacing:-0.5px;color:var(--accent);white-space:nowrap;}
+    #logo span{color:var(--text);font-weight:300;}
+    #load-status{font-size:12px;color:var(--muted);margin-left:auto;}
+    #load-status.ready{color:var(--ok);}
+    #load-status.error{color:var(--danger);}
+    #settings-btn{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:4px;-webkit-tap-highlight-color:transparent;flex-shrink:0;}
+    #settings-btn:active{color:var(--text);}
 
-    #map-wrap { flex: 1; position: relative; }
-    #map { width: 100%; height: 100%; }
+    #map-wrap{flex:1;position:relative;}
+    #map{width:100%;height:100%;}
 
     /* Panel */
-    #panel {
-      position: absolute; top: 0; left: 0;
-      width: var(--panel-w); max-width: 100%; height: 100%;
-      background: var(--surface); border-right: 1px solid var(--border);
-      display: flex; flex-direction: column;
-      z-index: 50; transform: translateX(-100%);
-      transition: transform 0.28s cubic-bezier(.4,0,.2,1);
-    }
-    #panel.open { transform: translateX(0); }
-    #panel-overlay {
-      display: none; position: absolute; inset: 0;
-      background: rgba(0,0,0,.6); z-index: 49;
-    }
-    #panel-overlay.visible { display: block; }
-    #panel-header {
-      padding: 16px; border-bottom: 1px solid var(--border);
-      display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
-    }
-    #panel-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
-    #panel-body {
-      flex: 1; overflow-y: auto; padding: 12px;
-      display: flex; flex-direction: column; gap: 14px;
-      padding-bottom: calc(12px + var(--safe-bottom));
-    }
-    #panel-body::-webkit-scrollbar { width: 4px; }
-    #panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    #panel{position:absolute;top:0;left:0;width:var(--panel-w);max-width:100%;height:100%;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:50;transform:translateX(-100%);transition:transform 0.28s cubic-bezier(.4,0,.2,1);}
+    #panel.open{transform:translateX(0);}
+    #panel-overlay{display:none;position:absolute;inset:0;background:rgba(0,0,0,.6);z-index:49;}
+    #panel-overlay.visible{display:block;}
+    #panel-header{padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+    #panel-title{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--muted);}
+    #panel-body{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:14px;padding-bottom:calc(12px + var(--safe-bottom));}
+    #panel-body::-webkit-scrollbar{width:4px;}
+    #panel-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+
+    /* Settings modal */
+    #settings-modal{display:none;position:absolute;inset:0;background:rgba(0,0,0,.75);z-index:200;align-items:center;justify-content:center;padding:24px;}
+    #settings-modal.open{display:flex;}
+    #settings-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;width:100%;max-width:320px;display:flex;flex-direction:column;gap:16px;}
+    #settings-card h2{font-size:15px;font-weight:700;color:var(--text);}
+    .settings-row{display:flex;flex-direction:column;gap:6px;}
+    .settings-row label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+    .settings-row input{padding:11px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:16px;outline:none;-webkit-appearance:none;}
+    .settings-row input:focus{border-color:var(--accent);}
+    .settings-hint{font-size:11px;color:var(--muted);}
+    .settings-range-row{display:flex;align-items:center;justify-content:space-between;}
+    .settings-range-row span{font-size:13px;color:var(--accent);font-weight:700;min-width:40px;text-align:right;}
 
     /* Tabs */
-    #tabs { display: flex; gap: 4px; background: var(--surface2); border-radius: var(--radius); padding: 4px; flex-shrink: 0; }
-    .tab-btn {
-      flex: 1; padding: 9px 4px; border: none; border-radius: 8px;
-      background: transparent; color: var(--muted);
-      font-size: 13px; font-weight: 600; cursor: pointer;
-      transition: background .15s, color .15s; -webkit-tap-highlight-color: transparent;
-    }
-    .tab-btn.active { background: var(--accent); color: #000; }
+    #tabs{display:flex;gap:4px;background:var(--surface2);border-radius:var(--radius);padding:4px;flex-shrink:0;}
+    .tab-btn{flex:1;padding:9px 4px;border:none;border-radius:8px;background:transparent;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;transition:background .15s,color .15s;-webkit-tap-highlight-color:transparent;}
+    .tab-btn.active{background:var(--accent);color:#000;}
 
-    /* Search input */
-    .input-wrap { position: relative; }
-    .input-wrap input {
-      width: 100%; padding: 12px 12px 12px 38px;
-      background: var(--surface2); border: 1px solid var(--border);
-      border-radius: var(--radius); color: var(--text);
-      font-size: 16px; /* 16px prevents iOS zoom */ outline: none;
-      transition: border-color .15s; -webkit-appearance: none;
-    }
-    .input-wrap input:focus { border-color: var(--accent); }
-    .input-wrap input::placeholder { color: var(--muted); }
-    .input-wrap .ico { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 16px; pointer-events: none; }
+    /* Inputs */
+    .input-wrap{position:relative;}
+    .input-wrap input{width:100%;padding:12px 12px 12px 38px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:16px;outline:none;transition:border-color .15s;-webkit-appearance:none;}
+    .input-wrap input:focus{border-color:var(--accent);}
+    .input-wrap input::placeholder{color:var(--muted);}
+    .input-wrap .ico{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:16px;pointer-events:none;}
 
-    /* Route inputs */
-    #route-section { display: flex; flex-direction: column; gap: 10px; }
-    .route-row { display: flex; align-items: center; gap: 10px; }
-    .route-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
-    .route-dot.start { background: var(--ok); }
-    .route-dot.end   { background: var(--danger); }
-    .route-row input {
-      flex: 1; padding: 12px;
-      background: var(--surface2); border: 1px solid var(--border);
-      border-radius: var(--radius); color: var(--text);
-      font-size: 16px; outline: none; transition: border-color .15s;
-      -webkit-appearance: none;
-    }
-    .route-row input:focus { border-color: var(--accent); }
-    .route-row input::placeholder { color: var(--muted); }
-    #corridor-row { display: flex; align-items: center; justify-content: space-between; }
-    #corridor-row label { font-size: 13px; color: var(--muted); }
-    #corridor-row select {
-      background: var(--surface2); border: 1px solid var(--border);
-      border-radius: 8px; color: var(--text); font-size: 14px; padding: 6px 10px; outline: none;
-    }
+    /* Route */
+    #route-section{display:flex;flex-direction:column;gap:10px;}
+    .route-row{display:flex;align-items:center;gap:10px;}
+    .route-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0;}
+    .route-dot.start{background:var(--ok);}
+    .route-dot.end{background:var(--danger);}
+    .route-row input{flex:1;padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:16px;outline:none;transition:border-color .15s;-webkit-appearance:none;}
+    .route-row input:focus{border-color:var(--accent);}
+    .route-row input::placeholder{color:var(--muted);}
+    #corridor-row{display:flex;align-items:center;justify-content:space-between;}
+    #corridor-row label{font-size:13px;color:var(--muted);}
+    #corridor-row select{background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;padding:6px 10px;outline:none;}
+
+    /* Vehicle range bar */
+    #range-summary{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:12px;display:none;flex-direction:column;gap:8px;}
+    #range-summary.visible{display:flex;}
+    #range-title{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);}
+    #range-info{font-size:13px;color:var(--text);}
+    #range-info strong{color:var(--accent);}
+    #range-bar-wrap{height:6px;background:var(--border);border-radius:3px;overflow:hidden;}
+    #range-bar{height:100%;background:var(--accent);border-radius:3px;transition:width .4s;}
 
     /* Buttons */
-    .btn {
-      width: 100%; padding: 13px; border: none; border-radius: var(--radius);
-      font-size: 15px; font-weight: 600; cursor: pointer; transition: opacity .15s;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .btn:active { opacity: .75; }
-    .btn-accent { background: var(--accent); color: #000; }
-    .btn-ghost { background: var(--surface2); border: 1px solid var(--border); color: var(--text); }
+    .btn{width:100%;padding:13px;border:none;border-radius:var(--radius);font-size:15px;font-weight:600;cursor:pointer;transition:opacity .15s;-webkit-tap-highlight-color:transparent;}
+    .btn:active{opacity:.75;}
+    .btn-accent{background:var(--accent);color:#000;}
+    .btn-ghost{background:var(--surface2);border:1px solid var(--border);color:var(--text);}
 
     /* Results */
-    .result-item {
-      background: var(--surface2); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 13px; cursor: pointer;
-      transition: border-color .15s; -webkit-tap-highlight-color: transparent;
-      min-height: 52px; /* comfortable tap target */
-    }
-    .result-item:active { border-color: var(--accent); background: #1f1f26; }
-    .result-item.on-route { border-left: 3px solid var(--accent); }
-    .result-name { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
-    .result-addr { font-size: 12px; color: var(--muted); margin-bottom: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .result-fuel { font-size: 11px; color: var(--accent); }
-    .result-dist { font-size: 12px; color: var(--accent); font-weight: 700; float: right; margin-left: 8px; }
+    .result-item{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:13px;cursor:pointer;transition:border-color .15s;-webkit-tap-highlight-color:transparent;min-height:52px;}
+    .result-item:active{border-color:var(--accent);background:#1f1f26;}
+    .result-item.on-route{border-left:3px solid var(--accent);}
+    .result-item.suggested-stop{border-left:3px solid var(--ok);background:#0f1a14;}
+    .result-name{font-size:14px;font-weight:600;margin-bottom:3px;}
+    .result-addr{font-size:12px;color:var(--muted);margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .result-fuel{font-size:11px;color:var(--accent);}
+    .result-dist{font-size:12px;color:var(--accent);font-weight:700;float:right;margin-left:8px;}
+    .stop-badge{display:inline-block;background:var(--ok);color:#000;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px;}
+    .stop-meta{font-size:11px;color:var(--ok);margin-top:3px;}
 
     /* Nearest banner */
-    #nearest-banner {
-      display: none;
-      background: linear-gradient(135deg, #1c1a12, #1f1c0f);
-      border: 1px solid var(--accent); border-radius: var(--radius);
-      padding: 14px; cursor: pointer; -webkit-tap-highlight-color: transparent;
-    }
-    #nearest-banner.visible { display: block; }
-    #nearest-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--accent); margin-bottom: 4px; }
-    #nearest-name { font-size: 15px; font-weight: 700; margin-bottom: 2px; }
-    #nearest-addr { font-size: 12px; color: var(--muted); margin-bottom: 2px; }
-    #nearest-dist { font-size: 13px; color: var(--accent); font-weight: 600; }
+    #nearest-banner{display:none;background:linear-gradient(135deg,#1c1a12,#1f1c0f);border:1px solid var(--accent);border-radius:var(--radius);padding:14px;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+    #nearest-banner.visible{display:block;}
+    #nearest-label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--accent);margin-bottom:4px;}
+    #nearest-name{font-size:15px;font-weight:700;margin-bottom:2px;}
+    #nearest-addr{font-size:12px;color:var(--muted);margin-bottom:2px;}
+    #nearest-dist{font-size:13px;color:var(--accent);font-weight:600;}
 
     /* FABs */
-    #fab-group {
-      position: absolute; bottom: calc(24px + var(--safe-bottom)); right: 16px;
-      display: flex; flex-direction: column; gap: 12px; z-index: 40;
-    }
-    .fab {
-      width: 52px; height: 52px; border-radius: 50%; border: none; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 22px; box-shadow: 0 4px 20px rgba(0,0,0,.6);
-      transition: transform .15s; -webkit-tap-highlight-color: transparent;
-    }
-    .fab:active { transform: scale(.90); }
-    #fab-locate { background: var(--accent); color: #000; }
-    #fab-menu   { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+    #fab-group{position:absolute;bottom:calc(24px + var(--safe-bottom));right:16px;display:flex;flex-direction:column;gap:12px;z-index:40;}
+    .fab{width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 4px 20px rgba(0,0,0,.6);transition:transform .15s;-webkit-tap-highlight-color:transparent;}
+    .fab:active{transform:scale(.90);}
+    #fab-locate{background:var(--accent);color:#000;}
+    #fab-menu{background:var(--surface);color:var(--text);border:1px solid var(--border);}
 
-    /* Status pill */
-    #status {
-      position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 20px; padding: 7px 16px; font-size: 13px; color: var(--muted);
-      z-index: 40; white-space: nowrap; transition: opacity .3s; pointer-events: none;
-    }
-    #status.hidden { opacity: 0; }
+    /* Status */
+    #status{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:7px 16px;font-size:13px;color:var(--muted);z-index:40;white-space:nowrap;transition:opacity .3s;pointer-events:none;}
+    #status.hidden{opacity:0;}
 
-    .close-btn {
-      background: none; border: none; color: var(--muted);
-      font-size: 22px; cursor: pointer; line-height: 1; padding: 6px;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .close-btn:active { color: var(--text); }
-    .empty { text-align: center; color: var(--muted); font-size: 13px; padding: 32px 0; }
+    .close-btn{background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;line-height:1;padding:6px;-webkit-tap-highlight-color:transparent;}
+    .close-btn:active{color:var(--text);}
+    .empty{text-align:center;color:var(--muted);font-size:13px;padding:32px 0;}
+    .section-label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);padding:4px 0 2px;}
 
     /* Loading overlay */
-    #loading-overlay {
-      position: absolute; inset: 0; background: var(--bg);
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      z-index: 200; gap: 16px;
-    }
-    #loading-overlay.hidden { display: none; }
-    .spinner {
-      width: 36px; height: 36px; border: 3px solid var(--border);
-      border-top-color: var(--accent); border-radius: 50%;
-      animation: spin .8s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    #loading-text { font-size: 14px; color: var(--muted); }
+    #loading-overlay{position:absolute;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:200;gap:16px;}
+    #loading-overlay.hidden{display:none;}
+    .spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    #loading-text{font-size:14px;color:var(--muted);}
 
     /* Info window */
-    .gm-style .gm-style-iw-c {
-      background: var(--surface) !important; border: 1px solid var(--border) !important;
-      border-radius: var(--radius) !important; box-shadow: 0 4px 24px rgba(0,0,0,.6) !important; padding: 0 !important;
-    }
-    .gm-style .gm-style-iw-d { overflow: hidden !important; padding: 0 !important; }
-    .gm-style .gm-style-iw-t::after { background: var(--surface) !important; }
-    .gm-style .gm-ui-hover-effect { display: none !important; }
-    .info-win { padding: 14px 16px; min-width: 200px; max-width: 260px; }
-    .info-win-name { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
-    .info-win-addr { font-size: 12px; color: var(--muted); margin-bottom: 3px; }
-    .info-win-fuel { font-size: 12px; color: var(--accent); margin-bottom: 10px; }
-    .info-win-dist { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
-    .info-win-btn {
-      display: block; width: 100%; padding: 10px;
-      background: var(--accent); color: #000; border: none;
-      border-radius: 8px; font-size: 14px; font-weight: 600;
-      cursor: pointer; text-align: center; text-decoration: none;
-    }
+    .gm-style .gm-style-iw-c{background:var(--surface)!important;border:1px solid var(--border)!important;border-radius:var(--radius)!important;box-shadow:0 4px 24px rgba(0,0,0,.6)!important;padding:0!important;}
+    .gm-style .gm-style-iw-d{overflow:hidden!important;padding:0!important;}
+    .gm-style .gm-style-iw-t::after{background:var(--surface)!important;}
+    .gm-style .gm-ui-hover-effect{display:none!important;}
+    .info-win{padding:14px 16px;min-width:200px;max-width:260px;}
+    .info-win-name{font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px;}
+    .info-win-addr{font-size:12px;color:var(--muted);margin-bottom:3px;}
+    .info-win-fuel{font-size:12px;color:var(--accent);margin-bottom:10px;}
+    .info-win-dist{font-size:12px;color:var(--muted);margin-bottom:10px;}
+    .info-win-btn{display:block;width:100%;padding:10px;background:var(--accent);color:#000;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;text-align:center;text-decoration:none;}
 
-    @media (max-width: 400px) { :root { --panel-w: 100%; } }
+    @media(max-width:400px){:root{--panel-w:100%;}}
   </style>
 </head>
 <body>
@@ -231,6 +160,7 @@
   <header id="header">
     <div id="logo">⛽ Pure<span>Gas</span></div>
     <div id="load-status">Loading…</div>
+    <button id="settings-btn" title="Vehicle Settings">⚙️</button>
   </header>
 
   <div id="map-wrap">
@@ -239,7 +169,32 @@
     <!-- Loading overlay -->
     <div id="loading-overlay">
       <div class="spinner"></div>
-      <div id="loading-text">Loading stations…</div>
+      <div id="loading-text">Loading 17,820 stations…</div>
+    </div>
+
+    <!-- Settings modal -->
+    <div id="settings-modal">
+      <div id="settings-card">
+        <h2>⚙️ Vehicle Settings</h2>
+        <div class="settings-row">
+          <label>Fuel Economy (MPG)</label>
+          <input type="number" id="set-mpg" placeholder="e.g. 25" min="1" max="150" inputmode="decimal" />
+        </div>
+        <div class="settings-row">
+          <label>Tank Size (gallons)</label>
+          <input type="number" id="set-tank" placeholder="e.g. 15" min="1" max="150" inputmode="decimal" />
+        </div>
+        <div class="settings-row">
+          <label>Reserve buffer — stop when tank hits</label>
+          <div class="settings-range-row">
+            <input type="range" id="set-reserve" min="5" max="40" step="5" style="flex:1;accent-color:var(--accent);" />
+            <span id="reserve-label">25%</span>
+          </div>
+          <div class="settings-hint" id="range-hint">Full range: — mi &nbsp;|&nbsp; Usable: — mi</div>
+        </div>
+        <button class="btn btn-accent" id="settings-save-btn">Save</button>
+        <button class="btn btn-ghost" id="settings-cancel-btn">Cancel</button>
+      </div>
     </div>
 
     <div id="panel-overlay"></div>
@@ -300,6 +255,14 @@
             <button class="btn btn-accent" id="route-go-btn">Get Route</button>
             <button class="btn btn-ghost" id="route-clear-btn" style="display:none">Clear Route</button>
           </div>
+
+          <!-- Range summary bar -->
+          <div id="range-summary">
+            <div id="range-title">Trip Range</div>
+            <div id="range-info">—</div>
+            <div id="range-bar-wrap"><div id="range-bar" style="width:0%"></div></div>
+          </div>
+
           <div id="results-route" class="empty">Enter a route to see nearby stations</div>
         </div>
 
@@ -316,34 +279,52 @@
 </div>
 
 <script>
+// ── STATE ────────────────────────────────────────────────────────────────────
 let map, infoWindow, directionsService, directionsRenderer, clustererInstance;
 let userMarker = null, userLatLng = null;
 let stations = [];
 let activeMarkers = [];
+let stopMarkers = [];
 let routePath = [];
+let routeDistances = []; // cumulative miles along route path
 let activeTab = 'nearest';
 
-function haversineMiles(lat1,lng1,lat2,lng2){
-  const R=3958.8,dLat=(lat2-lat1)*Math.PI/180,dLng=(lng2-lng1)*Math.PI/180;
-  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+// ── VEHICLE SETTINGS ─────────────────────────────────────────────────────────
+const DEFAULT_SETTINGS = { mpg: 25, tank: 15, reserve: 25 };
+function loadSettings() {
+  try {
+    const s = JSON.parse(localStorage.getItem('puregas_vehicle') || '{}');
+    return { ...DEFAULT_SETTINGS, ...s };
+  } catch { return { ...DEFAULT_SETTINGS }; }
+}
+function saveSettings(s) { localStorage.setItem('puregas_vehicle', JSON.stringify(s)); }
+let vehicle = loadSettings();
+
+function fullRange()   { return vehicle.mpg * vehicle.tank; }
+function usableRange() { return fullRange() * (1 - vehicle.reserve / 100); }
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function haversineMiles(la1,lo1,la2,lo2){
+  const R=3958.8,dL=(la2-la1)*Math.PI/180,dG=(lo2-lo1)*Math.PI/180;
+  const a=Math.sin(dL/2)**2+Math.cos(la1*Math.PI/180)*Math.cos(la2*Math.PI/180)*Math.sin(dG/2)**2;
   return R*2*Math.asin(Math.sqrt(a));
 }
 function fmtMiles(m){
-  if(m<0.1) return `${Math.round(m*5280)} ft`;
+  if(m<0.1)return`${Math.round(m*5280)} ft`;
   return m<10?`${m.toFixed(1)} mi`:`${Math.round(m)} mi`;
 }
 function showStatus(msg,ms=2500){
   const el=document.getElementById('status');
-  el.textContent=msg; el.classList.remove('hidden');
-  clearTimeout(el._t); el._t=setTimeout(()=>el.classList.add('hidden'),ms);
+  el.textContent=msg;el.classList.remove('hidden');
+  clearTimeout(el._t);el._t=setTimeout(()=>el.classList.add('hidden'),ms);
 }
 
+// ── MAP INIT ──────────────────────────────────────────────────────────────────
 function initMap(){
   map=new google.maps.Map(document.getElementById('map'),{
-    center:{lat:39.5,lng:-98.35},zoom:5,
-    mapTypeId:'roadmap',disableDefaultUI:true,zoomControl:false,
-    styles:darkMapStyle(),
-    gestureHandling:'greedy' // one-finger pan on mobile
+    center:{lat:39.5,lng:-98.35},zoom:5,mapTypeId:'roadmap',
+    disableDefaultUI:true,zoomControl:false,
+    styles:darkMapStyle(),gestureHandling:'greedy'
   });
   infoWindow=new google.maps.InfoWindow();
   directionsService=new google.maps.DirectionsService();
@@ -356,76 +337,137 @@ function initMap(){
   loadStations();
 }
 
-function darkMapStyle(){
-  return[
-    {elementType:'geometry',stylers:[{color:'#1a1a1f'}]},
-    {elementType:'labels.text.fill',stylers:[{color:'#8a8a9a'}]},
-    {elementType:'labels.text.stroke',stylers:[{color:'#0d0d0f'}]},
-    {featureType:'road',elementType:'geometry',stylers:[{color:'#2e2e3a'}]},
-    {featureType:'road.highway',elementType:'geometry',stylers:[{color:'#3a3a48'}]},
-    {featureType:'road.highway',elementType:'labels.text.fill',stylers:[{color:'#b0b0c0'}]},
-    {featureType:'water',elementType:'geometry',stylers:[{color:'#0d1520'}]},
-    {featureType:'poi',stylers:[{visibility:'off'}]},
-    {featureType:'transit',stylers:[{visibility:'off'}]},
-    {featureType:'administrative',elementType:'geometry',stylers:[{color:'#2e2e3a'}]},
-  ];
-}
+function darkMapStyle(){return[
+  {elementType:'geometry',stylers:[{color:'#1a1a1f'}]},
+  {elementType:'labels.text.fill',stylers:[{color:'#8a8a9a'}]},
+  {elementType:'labels.text.stroke',stylers:[{color:'#0d0d0f'}]},
+  {featureType:'road',elementType:'geometry',stylers:[{color:'#2e2e3a'}]},
+  {featureType:'road.highway',elementType:'geometry',stylers:[{color:'#3a3a48'}]},
+  {featureType:'road.highway',elementType:'labels.text.fill',stylers:[{color:'#b0b0c0'}]},
+  {featureType:'water',elementType:'geometry',stylers:[{color:'#0d1520'}]},
+  {featureType:'poi',stylers:[{visibility:'off'}]},
+  {featureType:'transit',stylers:[{visibility:'off'}]},
+  {featureType:'administrative',elementType:'geometry',stylers:[{color:'#2e2e3a'}]},
+];}
 
+// ── LOAD STATIONS ─────────────────────────────────────────────────────────────
 function loadStations(){
-  const script=document.createElement('script');
-  script.src='stations.js';
-  script.onload=()=>{
-    // STATIONS_DATA is now available: [[name,lat,lng,address,fuel], ...]
+  const s=document.createElement('script');
+  s.src='stations.js';
+  s.onload=()=>{
     stations=STATIONS_DATA.map(d=>({name:d[0],lat:d[1],lng:d[2],addr:d[3],fuel:d[4],_marker:null}));
     document.getElementById('loading-overlay').classList.add('hidden');
-    document.getElementById('load-status').textContent=`✓ ${stations.length.toLocaleString()} stations`;
+    document.getElementById('load-status').textContent=`✓ ${stations.length.toLocaleString()}`;
     document.getElementById('load-status').className='ready';
     renderClusteredMarkers(stations);
-    const bounds=new google.maps.LatLngBounds();
-    stations.forEach(s=>bounds.extend({lat:s.lat,lng:s.lng}));
-    map.fitBounds(bounds);
+    const b=new google.maps.LatLngBounds();
+    stations.forEach(s=>b.extend({lat:s.lat,lng:s.lng}));
+    map.fitBounds(b);
   };
-  script.onerror=()=>{
+  s.onerror=()=>{
     document.getElementById('loading-overlay').classList.add('hidden');
-    document.getElementById('load-status').textContent='Failed to load stations';
+    document.getElementById('load-status').textContent='Load failed';
     document.getElementById('load-status').className='error';
   };
-  document.head.appendChild(script);
+  document.head.appendChild(s);
 }
 
+// ── EVENTS ────────────────────────────────────────────────────────────────────
 function setupEvents(){
   document.getElementById('fab-menu').addEventListener('click',openPanel);
   document.getElementById('panel-close').addEventListener('click',closePanel);
   document.getElementById('panel-overlay').addEventListener('click',closePanel);
   document.getElementById('fab-locate').addEventListener('click',locateUser);
-  document.querySelectorAll('.tab-btn').forEach(btn=>btn.addEventListener('click',()=>switchTab(btn.dataset.tab)));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click',()=>switchTab(b.dataset.tab)));
   document.getElementById('search-input').addEventListener('input',onSearch);
   document.getElementById('route-go-btn').addEventListener('click',calcRoute);
   document.getElementById('route-clear-btn').addEventListener('click',clearRoute);
+  document.getElementById('settings-btn').addEventListener('click',openSettings);
+  document.getElementById('settings-save-btn').addEventListener('click',saveSettingsFromModal);
+  document.getElementById('settings-cancel-btn').addEventListener('click',closeSettings);
+  document.getElementById('set-reserve').addEventListener('input',updateReserveLabel);
 }
 
 function openPanel(){document.getElementById('panel').classList.add('open');document.getElementById('panel-overlay').classList.add('visible');}
 function closePanel(){document.getElementById('panel').classList.remove('open');document.getElementById('panel-overlay').classList.remove('visible');}
+function switchTab(tab){
+  activeTab=tab;
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+  ['nearest','search','route'].forEach(t=>{
+    const el=document.getElementById(`tab-${t}`);
+    el.style.display=t===tab?'flex':'none';
+  });
+}
 
+// ── SETTINGS MODAL ────────────────────────────────────────────────────────────
+function openSettings(){
+  document.getElementById('set-mpg').value=vehicle.mpg||'';
+  document.getElementById('set-tank').value=vehicle.tank||'';
+  document.getElementById('set-reserve').value=vehicle.reserve||25;
+  updateReserveLabel();
+  document.getElementById('settings-modal').classList.add('open');
+}
+function closeSettings(){ document.getElementById('settings-modal').classList.remove('open'); }
+function updateReserveLabel(){
+  const r=parseInt(document.getElementById('set-reserve').value);
+  document.getElementById('reserve-label').textContent=r+'%';
+  const mpg=parseFloat(document.getElementById('set-mpg').value)||0;
+  const tank=parseFloat(document.getElementById('set-tank').value)||0;
+  if(mpg&&tank){
+    const full=mpg*tank;
+    const usable=full*(1-r/100);
+    document.getElementById('range-hint').textContent=`Full range: ${Math.round(full)} mi  |  Usable: ${Math.round(usable)} mi`;
+  } else {
+    document.getElementById('range-hint').textContent='Enter MPG and tank size above';
+  }
+}
+function saveSettingsFromModal(){
+  const mpg=parseFloat(document.getElementById('set-mpg').value);
+  const tank=parseFloat(document.getElementById('set-tank').value);
+  const reserve=parseInt(document.getElementById('set-reserve').value);
+  if(!mpg||!tank||mpg<1||tank<1){showStatus('Enter valid MPG and tank size');return;}
+  vehicle={mpg,tank,reserve};
+  saveSettings(vehicle);
+  closeSettings();
+  showStatus(`Saved — ${Math.round(usableRange())} mi usable range`);
+}
+
+// ── MARKERS ───────────────────────────────────────────────────────────────────
 function clearAllMarkers(){
   if(clustererInstance){clustererInstance.clearMarkers();clustererInstance=null;}
   activeMarkers.forEach(m=>m.setMap(null));
   activeMarkers=[];
+  clearStopMarkers();
+}
+function clearStopMarkers(){
+  stopMarkers.forEach(m=>m.setMap(null));
+  stopMarkers=[];
 }
 
 function makeMarker(s,highlighted){
   const m=new google.maps.Marker({
     position:{lat:s.lat,lng:s.lng},title:s.name,
-    icon:{
-      path:google.maps.SymbolPath.CIRCLE,
-      scale:highlighted?9:7,
+    icon:{path:google.maps.SymbolPath.CIRCLE,scale:highlighted?9:7,
       fillColor:'#f5a623',fillOpacity:highlighted?1:0.9,
-      strokeColor:highlighted?'#fff':'#0d0d0f',strokeWeight:highlighted?2.5:2
-    },
+      strokeColor:highlighted?'#fff':'#0d0d0f',strokeWeight:highlighted?2.5:2},
     optimized:true
   });
   m.addListener('click',()=>openInfoWindow(m,s));
   return m;
+}
+
+function makeStopMarker(lat,lng,label){
+  const sz=36;
+  return new google.maps.Marker({
+    position:{lat,lng},
+    icon:{
+      url:`data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='${sz}' height='${sz+8}'><circle cx='${sz/2}' cy='${sz/2}' r='${sz/2-2}' fill='%234caf7d' stroke='%230d0d0f' stroke-width='2'/><text x='50%25' y='${sz/2+1}' dominant-baseline='middle' text-anchor='middle' font-family='system-ui' font-size='13' font-weight='700' fill='%23000'>${label}</text><polygon points='${sz/2-5},${sz-2} ${sz/2+5},${sz-2} ${sz/2},${sz+6}' fill='%234caf7d'/></svg>`,
+      scaledSize:new google.maps.Size(sz,sz+8),
+      anchor:new google.maps.Point(sz/2,sz+8)
+    },
+    zIndex:500,
+    map
+  });
 }
 
 function renderClusteredMarkers(list,highlightSet){
@@ -440,21 +482,13 @@ function renderClusteredMarkers(list,highlightSet){
   if(window.markerClusterer){
     clustererInstance=new window.markerClusterer.MarkerClusterer({
       map,markers:activeMarkers,
-      renderer:{
-        render({count,position}){
-          const sz=count<10?34:count<50?40:count<200?46:52;
-          const fs=sz<40?11:sz<46?12:13;
-          return new google.maps.Marker({
-            position,
-            icon:{
-              url:`data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='${sz}' height='${sz}'><circle cx='${sz/2}' cy='${sz/2}' r='${sz/2-2}' fill='%23f5a623' stroke='%230d0d0f' stroke-width='2'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='system-ui' font-size='${fs}' font-weight='700' fill='%23000'>${count>999?'1k+':count}</text></svg>`,
-              scaledSize:new google.maps.Size(sz,sz),
-              anchor:new google.maps.Point(sz/2,sz/2)
-            },
-            zIndex:1000
-          });
-        }
-      }
+      renderer:{render({count,position}){
+        const sz=count<10?34:count<50?40:count<200?46:52;
+        const fs=sz<40?11:sz<46?12:13;
+        return new google.maps.Marker({position,
+          icon:{url:`data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='${sz}' height='${sz}'><circle cx='${sz/2}' cy='${sz/2}' r='${sz/2-2}' fill='%23f5a623' stroke='%230d0d0f' stroke-width='2'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='system-ui' font-size='${fs}' font-weight='700' fill='%23000'>${count>999?'1k+':count}</text></svg>`,
+          scaledSize:new google.maps.Size(sz,sz),anchor:new google.maps.Point(sz/2,sz/2)},zIndex:1000});
+      }}
     });
   }
 }
@@ -463,29 +497,21 @@ function openInfoWindow(marker,s){
   const dist=userLatLng?`<div class="info-win-dist">📍 ${fmtMiles(haversineMiles(userLatLng.lat(),userLatLng.lng(),s.lat,s.lng))} away</div>`:'';
   const addr=s.addr?`<div class="info-win-addr">${s.addr}</div>`:'';
   const fuel=s.fuel?`<div class="info-win-fuel">${s.fuel}</div>`:'';
-  const navUrl=`https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}&travelmode=driving`;
-  infoWindow.setContent(`
-    <div class="info-win">
-      <div class="info-win-name">${s.name}</div>
-      ${addr}${fuel}${dist}
-      <a class="info-win-btn" href="${navUrl}" target="_blank">Navigate →</a>
-    </div>
-  `);
+  const nav=`https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}&travelmode=driving`;
+  infoWindow.setContent(`<div class="info-win"><div class="info-win-name">${s.name}</div>${addr}${fuel}${dist}<a class="info-win-btn" href="${nav}" target="_blank">Navigate →</a></div>`);
   infoWindow.open(map,marker);
 }
 
+// ── GPS ───────────────────────────────────────────────────────────────────────
 function locateUser(){
   if(!navigator.geolocation){showStatus('GPS not available');return;}
   showStatus('Finding location…',8000);
   navigator.geolocation.getCurrentPosition(pos=>{
     userLatLng=new google.maps.LatLng(pos.coords.latitude,pos.coords.longitude);
     if(!userMarker){
-      userMarker=new google.maps.Marker({
-        position:userLatLng,map,title:'You',
-        icon:{path:google.maps.SymbolPath.CIRCLE,scale:10,fillColor:'#4caf7d',fillOpacity:1,strokeColor:'#fff',strokeWeight:2.5},
-        zIndex:999
-      });
-    } else { userMarker.setPosition(userLatLng); }
+      userMarker=new google.maps.Marker({position:userLatLng,map,title:'You',
+        icon:{path:google.maps.SymbolPath.CIRCLE,scale:10,fillColor:'#4caf7d',fillOpacity:1,strokeColor:'#fff',strokeWeight:2.5},zIndex:999});
+    } else {userMarker.setPosition(userLatLng);}
     map.panTo(userLatLng);
     if(map.getZoom()<10)map.setZoom(12);
     showStatus('Location found');
@@ -494,127 +520,204 @@ function locateUser(){
   },()=>showStatus('Location denied'),{enableHighAccuracy:true,timeout:10000});
 }
 
+// ── NEAREST ───────────────────────────────────────────────────────────────────
 function updateNearest(){
   if(!userLatLng||!stations.length)return;
-  const ulat=userLatLng.lat(),ulng=userLatLng.lng();
-  const sorted=stations.map(s=>({...s,dist:haversineMiles(ulat,ulng,s.lat,s.lng)}))
-    .sort((a,b)=>a.dist-b.dist);
+  const ul=userLatLng.lat(),ug=userLatLng.lng();
+  const sorted=stations.map(s=>({...s,dist:haversineMiles(ul,ug,s.lat,s.lng)})).sort((a,b)=>a.dist-b.dist);
   const n=sorted[0];
   document.getElementById('nearest-name').textContent=n.name;
   document.getElementById('nearest-addr').textContent=n.addr||'';
   document.getElementById('nearest-dist').textContent=fmtMiles(n.dist)+' away';
-  const banner=document.getElementById('nearest-banner');
-  banner.classList.add('visible');
-  banner.onclick=()=>{
-    map.panTo({lat:n.lat,lng:n.lng});map.setZoom(14);
-    if(n._marker)google.maps.event.trigger(n._marker,'click');
-    closePanel();
-  };
+  document.getElementById('nearest-banner').classList.add('visible');
+  document.getElementById('nearest-banner').onclick=()=>{map.panTo({lat:n.lat,lng:n.lng});map.setZoom(14);if(n._marker)google.maps.event.trigger(n._marker,'click');closePanel();};
   const list=document.getElementById('results-nearest');
   list.innerHTML='';list.className='';
   sorted.slice(0,20).forEach(s=>{
     const item=document.createElement('div');
     item.className='result-item';
     item.innerHTML=`<span class="result-dist">${fmtMiles(s.dist)}</span><div class="result-name">${s.name}</div>${s.addr?`<div class="result-addr">${s.addr}</div>`:''}${s.fuel?`<div class="result-fuel">${s.fuel}</div>`:''}`;
-    item.addEventListener('click',()=>{
-      map.panTo({lat:s.lat,lng:s.lng});map.setZoom(14);
-      if(s._marker)google.maps.event.trigger(s._marker,'click');
-      closePanel();
-    });
+    item.addEventListener('click',()=>{map.panTo({lat:s.lat,lng:s.lng});map.setZoom(14);if(s._marker)google.maps.event.trigger(s._marker,'click');closePanel();});
     list.appendChild(item);
   });
 }
 
+// ── SEARCH ────────────────────────────────────────────────────────────────────
 function onSearch(e){renderSearchResults(e.target.value.trim().toLowerCase());}
-
 function renderSearchResults(q){
   const list=document.getElementById('results-search');
   list.innerHTML='';list.className='';
   if(!q){list.innerHTML=`<div class="empty">Type to search ${stations.length.toLocaleString()} stations</div>`;return;}
   const filtered=stations.filter(s=>s.name.toLowerCase().includes(q)||s.addr.toLowerCase().includes(q));
   if(!filtered.length){list.innerHTML='<div class="empty">No stations match</div>';return;}
-  const ulat=userLatLng?userLatLng.lat():null,ulng=userLatLng?userLatLng.lng():null;
-  const sorted=filtered.map(s=>({...s,dist:ulat?haversineMiles(ulat,ulng,s.lat,s.lng):null}))
-    .sort((a,b)=>a.dist!==null?a.dist-b.dist:0);
+  const ul=userLatLng?userLatLng.lat():null,ug=userLatLng?userLatLng.lng():null;
+  const sorted=filtered.map(s=>({...s,dist:ul?haversineMiles(ul,ug,s.lat,s.lng):null})).sort((a,b)=>a.dist!==null?a.dist-b.dist:0);
   sorted.slice(0,50).forEach(s=>{
     const item=document.createElement('div');
     item.className='result-item';
     const ds=s.dist!==null?`<span class="result-dist">${fmtMiles(s.dist)}</span>`:'';
     item.innerHTML=`${ds}<div class="result-name">${s.name}</div>${s.addr?`<div class="result-addr">${s.addr}</div>`:''}${s.fuel?`<div class="result-fuel">${s.fuel}</div>`:''}`;
-    item.addEventListener('click',()=>{
-      map.panTo({lat:s.lat,lng:s.lng});map.setZoom(14);
-      if(s._marker)google.maps.event.trigger(s._marker,'click');
-      closePanel();
-    });
+    item.addEventListener('click',()=>{map.panTo({lat:s.lat,lng:s.lng});map.setZoom(14);if(s._marker)google.maps.event.trigger(s._marker,'click');closePanel();});
     list.appendChild(item);
   });
 }
 
+// ── ROUTE ─────────────────────────────────────────────────────────────────────
 function calcRoute(){
   const si=document.getElementById('route-start').value.trim();
   const ei=document.getElementById('route-end').value.trim();
   if(!ei){showStatus('Enter a destination');return;}
   const origin=si||userLatLng;
   if(!origin){showStatus('Enter a start or use GPS');return;}
+  // Prompt to set vehicle if not set
+  if(!vehicle.mpg||!vehicle.tank){
+    showStatus('Set vehicle MPG & tank first ⚙️',4000);
+    openSettings();
+    return;
+  }
   showStatus('Calculating route…',8000);
   directionsService.route({origin,destination:ei,travelMode:google.maps.TravelMode.DRIVING},(result,status)=>{
     if(status!=='OK'){showStatus('Route not found');return;}
     directionsRenderer.setDirections(result);
-    routePath=[];
-    result.routes[0].legs.forEach(leg=>leg.steps.forEach(step=>step.path.forEach(pt=>routePath.push(pt))));
-    const mi=parseFloat(document.getElementById('corridor-miles').value);
-    showRouteStations(mi);
+    // Build path + cumulative distance array
+    routePath=[];routeDistances=[];
+    let cumulative=0;
+    result.routes[0].legs.forEach(leg=>{
+      leg.steps.forEach(step=>{
+        step.path.forEach((pt,i)=>{
+          if(routePath.length>0){
+            const prev=routePath[routePath.length-1];
+            cumulative+=haversineMiles(prev.lat(),prev.lng(),pt.lat(),pt.lng());
+          }
+          routePath.push(pt);
+          routeDistances.push(cumulative);
+        });
+      });
+    });
+    const totalMiles=routeDistances[routeDistances.length-1]||0;
+    const corridorMiles=parseFloat(document.getElementById('corridor-miles').value);
+    showRouteStations(corridorMiles,totalMiles);
     document.getElementById('route-clear-btn').style.display='block';
     showStatus('Route loaded');
   });
 }
 
-function minDistToRoute(lat,lng){
-  let min=Infinity;
-  for(const pt of routePath){const d=haversineMiles(lat,lng,pt.lat(),pt.lng());if(d<min)min=d;}
-  return min;
-}
-
-function showRouteStations(corridorMiles){
+// ── ROUTE STATIONS + SUGGESTED STOPS ─────────────────────────────────────────
+function showRouteStations(corridorMiles,totalMiles){
   const list=document.getElementById('results-route');
   list.innerHTML='';list.className='';
-  const ulat=userLatLng?userLatLng.lat():null,ulng=userLatLng?userLatLng.lng():null;
-  const near=stations.map(s=>({...s,routeDist:minDistToRoute(s.lat,s.lng),userDist:ulat?haversineMiles(ulat,ulng,s.lat,s.lng):null}))
-    .filter(s=>s.routeDist<=corridorMiles)
-    .sort((a,b)=>a.routeDist-b.routeDist);
+  clearStopMarkers();
+
+  const ul=userLatLng?userLatLng.lat():null,ug=userLatLng?userLatLng.lng():null;
+
+  // For each station, find its closest point on the route and its mileage position
+  const near=stations.map(s=>{
+    let minDist=Infinity,closestMileage=0;
+    for(let i=0;i<routePath.length;i++){
+      const d=haversineMiles(s.lat,s.lng,routePath[i].lat(),routePath[i].lng());
+      if(d<minDist){minDist=d;closestMileage=routeDistances[i];}
+    }
+    return{...s,routeDist:minDist,routeMileage:closestMileage,userDist:ul?haversineMiles(ul,ug,s.lat,s.lng):null};
+  }).filter(s=>s.routeDist<=corridorMiles).sort((a,b)=>a.routeMileage-b.routeMileage);
+
+  // ── SUGGESTED STOP LOGIC ──────────────────────────────────────────────────
+  const usable=usableRange();
+  const suggestedStops=[];
+  let fuelMilesLeft=usable; // start with full usable tank
+  let lastStopMileage=0;
+
+  // Walk route in usable-range chunks
+  while(true){
+    const nextStopTarget=lastStopMileage+usable;
+    if(nextStopTarget>=totalMiles) break; // can make it to end
+
+    // Find stations in a window: from 75% of usable range to the target
+    const windowStart=lastStopMileage+(usable*0.75);
+    const candidates=near.filter(s=>s.routeMileage>=windowStart&&s.routeMileage<=nextStopTarget);
+
+    if(!candidates.length){
+      // No station in range — pick the one closest to target
+      const fallback=near.filter(s=>s.routeMileage>lastStopMileage).sort((a,b)=>Math.abs(a.routeMileage-nextStopTarget)-Math.abs(b.routeMileage-nextStopTarget));
+      if(fallback.length){
+        const pick=fallback[0];
+        suggestedStops.push({...pick,stopNum:suggestedStops.length+1,mileageAtStop:pick.routeMileage});
+        lastStopMileage=pick.routeMileage;
+      } else break;
+    } else {
+      // Pick candidate with least detour (routeDist = distance off route)
+      const pick=candidates.sort((a,b)=>a.routeDist-b.routeDist)[0];
+      suggestedStops.push({...pick,stopNum:suggestedStops.length+1,mileageAtStop:pick.routeMileage});
+      lastStopMileage=pick.routeMileage;
+    }
+    if(suggestedStops.length>20) break; // safety cap
+  }
+
+  // Place stop markers on map
+  suggestedStops.forEach(s=>{
+    const m=makeStopMarker(s.lat,s.lng,`S${s.stopNum}`);
+    stopMarkers.push(m);
+    s._stopMarker=m;
+  });
+
+  // Render markers — highlight suggested stops
   const nearSet=new Set(near);
   renderClusteredMarkers(near,nearSet);
+
+  // Range summary bar
+  const summaryEl=document.getElementById('range-summary');
+  if(totalMiles>0){
+    const pct=Math.min(100,Math.round((usable/totalMiles)*100));
+    document.getElementById('range-info').innerHTML=`<strong>${Math.round(usable)} mi</strong> usable range &nbsp;·&nbsp; ${Math.round(totalMiles)} mi trip &nbsp;·&nbsp; <strong>${suggestedStops.length}</strong> stop${suggestedStops.length!==1?'s':''}`;
+    document.getElementById('range-bar').style.width=pct+'%';
+    summaryEl.classList.add('visible');
+  }
+
   if(!near.length){list.innerHTML=`<div class="empty">No stations within ${corridorMiles} mi of route</div>`;return;}
+
+  // Build result list — suggested stops first (in order), then remaining stations
+  const suggestedIds=new Set(suggestedStops.map(s=>`${s.lat},${s.lng}`));
+
+  // Suggested stops section
+  if(suggestedStops.length){
+    const lbl=document.createElement('div');
+    lbl.className='section-label';
+    lbl.textContent=`🟢 Suggested Stops (${suggestedStops.length})`;
+    list.appendChild(lbl);
+    suggestedStops.forEach(s=>{
+      const item=document.createElement('div');
+      item.className='result-item suggested-stop';
+      const ds=s.userDist!==null?`<span class="result-dist">${fmtMiles(s.userDist)}</span>`:'';
+      item.innerHTML=`${ds}<div class="stop-badge">Stop ${s.stopNum} · Mile ${Math.round(s.mileageAtStop)}</div><div class="result-name">${s.name}</div>${s.addr?`<div class="result-addr">${s.addr}</div>`:''}${s.fuel?`<div class="result-fuel">${s.fuel}</div>`:''}${s.routeDist>0.1?`<div class="stop-meta">+${fmtMiles(s.routeDist)} off route</div>`:'<div class="stop-meta">On route</div>'}`;
+      item.addEventListener('click',()=>{map.panTo({lat:s.lat,lng:s.lng});map.setZoom(14);if(s._marker)google.maps.event.trigger(s._marker,'click');closePanel();});
+      list.appendChild(item);
+    });
+  }
+
+  // All nearby stations section
+  const lbl2=document.createElement('div');
+  lbl2.className='section-label';
+  lbl2.textContent=`⛽ All Nearby Stations (${near.length})`;
+  list.appendChild(lbl2);
+
   near.forEach(s=>{
     const item=document.createElement('div');
     item.className='result-item on-route';
     const ds=s.userDist!==null?`<span class="result-dist">${fmtMiles(s.userDist)}</span>`:'';
     item.innerHTML=`${ds}<div class="result-name">${s.name}</div>${s.addr?`<div class="result-addr">${s.addr}</div>`:''}${s.fuel?`<div class="result-fuel">${s.fuel}</div>`:''}`;
-    item.addEventListener('click',()=>{
-      map.panTo({lat:s.lat,lng:s.lng});map.setZoom(14);
-      if(s._marker)google.maps.event.trigger(s._marker,'click');
-      closePanel();
-    });
+    item.addEventListener('click',()=>{map.panTo({lat:s.lat,lng:s.lng});map.setZoom(14);if(s._marker)google.maps.event.trigger(s._marker,'click');closePanel();});
     list.appendChild(item);
   });
 }
 
 function clearRoute(){
   directionsRenderer.setDirections({routes:[]});
-  routePath=[];
+  routePath=[];routeDistances=[];
   renderClusteredMarkers(stations);
+  clearStopMarkers();
   document.getElementById('results-route').innerHTML='<div class="empty">Enter a route to see nearby stations</div>';
   document.getElementById('route-clear-btn').style.display='none';
+  document.getElementById('range-summary').classList.remove('visible');
   showStatus('Route cleared');
-}
-
-function switchTab(tab){
-  activeTab=tab;
-  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
-  ['nearest','search','route'].forEach(t=>{
-    const el=document.getElementById(`tab-${t}`);
-    el.style.display=t===tab?'flex':'none';
-  });
 }
 
 window.initMap=initMap;
@@ -622,7 +725,6 @@ window.initMap=initMap;
 
 <script src="https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js"></script>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCGYMaGaZJ3Nsb-r-AmFZfp27_bHoibnhI&libraries=geometry&callback=initMap" async defer></script>
-
 <script>
   if('serviceWorker' in navigator){
     window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
