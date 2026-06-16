@@ -391,28 +391,44 @@ function stationMatchesOctane(s){
 
 const ZOOM_THRESHOLD = 7;
 
+const CLUSTER_RENDERER = {
+  render({count,position}){
+    const sz=count<10?34:count<50?40:count<200?46:52;
+    const fs=sz<40?11:sz<46?12:13;
+    const el=document.createElement('div');
+    el.style.cssText=`width:${sz}px;height:${sz}px;border-radius:50%;background:#f5a623;border:2px solid #0d0d0f;display:flex;align-items:center;justify-content:center;font-family:system-ui;font-size:${fs}px;font-weight:700;color:#000;cursor:pointer;`;
+    el.textContent=count>999?'1k+':count;
+    return new google.maps.marker.AdvancedMarkerElement({position,content:el,zIndex:1000});
+  }
+};
+
+function clearViewportMarkers(){
+  if(clustererInstance){clustererInstance.clearMarkers();clustererInstance=null;}
+  activeMarkers.forEach(m=>{m.map=null;});
+  activeMarkers=[];
+  stations.forEach(s=>{s._marker=null;});
+}
+
 function renderViewportMarkers(){
   if(!map||!stations.length) return;
   const zoom=map.getZoom();
   const overlay=document.getElementById('zoom-overlay');
+
   if(zoom < ZOOM_THRESHOLD){
-    // Hide all markers, show overlay
     overlay.classList.remove('hidden');
-    if(activeMarkers.length){
-      activeMarkers.forEach(m=>{m.map=null;});
-      activeMarkers=[];
-      if(clustererInstance){clustererInstance.clearMarkers();clustererInstance=null;}
-      stations.forEach(s=>{s._marker=null;});
-    }
+    if(activeMarkers.length) clearViewportMarkers();
     return;
   }
   overlay.classList.add('hidden');
+
   const bounds=map.getBounds();
   if(!bounds) return;
   const ne=bounds.getNorthEast(), sw=bounds.getSouthWest();
-  // 50% padding buffer so pins don't pop in while panning
-  const latPad=(ne.lat()-sw.lat())*0.5;
-  const lngPad=(ne.lng()-sw.lng())*0.5;
+
+  // Scale padding with zoom — less padding at low zoom to limit marker count
+  const pad=Math.min(0.3, 0.05 * (zoom - ZOOM_THRESHOLD + 1));
+  const latPad=(ne.lat()-sw.lat())*pad;
+  const lngPad=(ne.lng()-sw.lng())*pad;
   const minLat=sw.lat()-latPad, maxLat=ne.lat()+latPad;
   const minLng=sw.lng()-lngPad, maxLng=ne.lng()+lngPad;
 
@@ -422,41 +438,32 @@ function renderViewportMarkers(){
     s.lng>=minLng&&s.lng<=maxLng
   ));
 
-  // Only add markers that aren't already on map
-  const toAdd=[...inView].filter(s=>!s._marker||s._marker.map===null);
-  // Only remove markers that scrolled out of the padded bounds
+  const toAdd=[...inView].filter(s=>!s._marker);
   const toRemove=activeMarkers.filter(m=>m._station&&!inView.has(m._station));
 
-  // Remove out-of-view markers
-  toRemove.forEach(m=>{
-    m.map=null;
-    activeMarkers.splice(activeMarkers.indexOf(m),1);
-    if(clustererInstance) clustererInstance.removeMarker(m);
-  });
+  // Remove out-of-view — let clusterer manage map assignment
+  if(toRemove.length){
+    toRemove.forEach(m=>{
+      if(m._station) m._station._marker=null;
+    });
+    if(clustererInstance) clustererInstance.removeMarkers(toRemove);
+    toRemove.forEach(m=>activeMarkers.splice(activeMarkers.indexOf(m),1));
+  }
 
-  // Add new in-view markers
-  const newMarkers=toAdd.map(s=>{
-    const m=makeMarker(s,false);
-    m._station=s;
-    m.map=map;
-    s._marker=m;
-    return m;
-  });
-
-  if(newMarkers.length){
+  // Add new markers — don't set m.map, let clusterer own that
+  if(toAdd.length){
+    const newMarkers=toAdd.map(s=>{
+      const m=makeMarker(s,false);
+      m._station=s;
+      s._marker=m;
+      return m;
+    });
     activeMarkers.push(...newMarkers);
-    if(clustererInstance) clustererInstance.addMarkers(newMarkers);
-    else if(window.markerClusterer){
+    if(clustererInstance){
+      clustererInstance.addMarkers(newMarkers);
+    } else if(window.markerClusterer){
       clustererInstance=new window.markerClusterer.MarkerClusterer({
-        map,markers:activeMarkers,
-        renderer:{render({count,position}){
-          const sz=count<10?34:count<50?40:count<200?46:52;
-          const fs=sz<40?11:sz<46?12:13;
-          const el=document.createElement('div');
-          el.style.cssText=`width:${sz}px;height:${sz}px;border-radius:50%;background:#f5a623;border:2px solid #0d0d0f;display:flex;align-items:center;justify-content:center;font-family:system-ui;font-size:${fs}px;font-weight:700;color:#000;`;
-          el.textContent=count>999?'1k+':count;
-          return new google.maps.marker.AdvancedMarkerElement({position,content:el,zIndex:1000});
-        }}
+        map, markers:activeMarkers, renderer:CLUSTER_RENDERER
       });
     }
   }
@@ -582,9 +589,7 @@ function saveSettingsFromModal(){
 
 // ── MARKERS ───────────────────────────────────────────────────────────────────
 function clearAllMarkers(){
-  if(clustererInstance){clustererInstance.clearMarkers();clustererInstance=null;}
-  activeMarkers.forEach(m=>{m.map=null;});
-  activeMarkers=[];
+  clearViewportMarkers();
   clearStopMarkers();
 }
 function clearStopMarkers(){
@@ -599,8 +604,8 @@ function makeMarker(s,highlighted){
   const m=new google.maps.marker.AdvancedMarkerElement({
     position:{lat:s.lat,lng:s.lng},
     title:s.name,
-    content:dot,
-    map:null
+    content:dot
+    // map not set here — clusterer owns map assignment
   });
   m.addListener('click',()=>openInfoWindow(m,s,false));
   return m;
@@ -627,21 +632,13 @@ function renderClusteredMarkers(list,highlightSet){
   list.forEach(s=>{
     const hl=highlightSet?highlightSet.has(s):false;
     const m=makeMarker(s,hl);
-    m.map=map;
     activeMarkers.push(m);
     s._marker=m;
   });
   if(window.markerClusterer){
     clustererInstance=new window.markerClusterer.MarkerClusterer({
       map,markers:activeMarkers,
-      renderer:{render({count,position}){
-        const sz=count<10?34:count<50?40:count<200?46:52;
-        const fs=sz<40?11:sz<46?12:13;
-        const el=document.createElement('div');
-        el.style.cssText=`width:${sz}px;height:${sz}px;border-radius:50%;background:#f5a623;border:2px solid #0d0d0f;display:flex;align-items:center;justify-content:center;font-family:system-ui;font-size:${fs}px;font-weight:700;color:#000;`;
-        el.textContent=count>999?'1k+':count;
-        return new google.maps.marker.AdvancedMarkerElement({position,content:el,zIndex:1000});
-      }}
+      renderer:CLUSTER_RENDERER
     });
   }
 }
