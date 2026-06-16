@@ -155,6 +155,13 @@
     .info-win-btn{display:block;width:100%;padding:10px;background:var(--accent);color:#000;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;text-align:center;text-decoration:none;}
 
     @media(max-width:400px){:root{--panel-w:100%;}}
+    .octane-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+    .octane-check{display:flex;align-items:center;gap:10px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:border-color .15s;}
+    .octane-check.selected{border-color:var(--accent);background:#1f1a0f;}
+    .octane-check input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent);flex-shrink:0;cursor:pointer;}
+    .octane-label{display:flex;flex-direction:column;gap:1px;}
+    .octane-name{font-size:13px;font-weight:700;color:var(--text);}
+    .octane-sub{font-size:11px;color:var(--muted);}
   </style>
 </head>
 <body>
@@ -210,6 +217,17 @@
             <span id="reserve-label">25%</span>
           </div>
           <div class="settings-hint" id="range-hint">Enter MPG and tank size to see your range</div>
+        </div>
+        <div class="settings-row">
+          <label>Octane Grades I Need</label>
+          <div class="octane-grid" id="octane-grid">
+            <label class="octane-check selected" data-oct="87"><input type="checkbox" value="87" checked /><div class="octane-label"><span class="octane-name">87–88</span><span class="octane-sub">Regular</span></div></label>
+            <label class="octane-check selected" data-oct="89"><input type="checkbox" value="89" checked /><div class="octane-label"><span class="octane-name">89–90</span><span class="octane-sub">Mid-Grade</span></div></label>
+            <label class="octane-check selected" data-oct="91"><input type="checkbox" value="91" checked /><div class="octane-label"><span class="octane-name">91–94</span><span class="octane-sub">Premium</span></div></label>
+            <label class="octane-check" data-oct="95"><input type="checkbox" value="95" /><div class="octane-label"><span class="octane-name">95–98</span><span class="octane-sub">Super Premium</span></div></label>
+            <label class="octane-check" data-oct="99"><input type="checkbox" value="99" /><div class="octane-label"><span class="octane-name">99–119</span><span class="octane-sub">Racing</span></div></label>
+            <label class="octane-check" data-oct="86"><input type="checkbox" value="86" /><div class="octane-label"><span class="octane-name">70–86</span><span class="octane-sub">Low / Altitude</span></div></label>
+          </div>
         </div>
         <button class="btn btn-accent" id="settings-save-btn">Save Vehicle</button>
         <button class="btn btn-ghost" id="settings-cancel-btn">Skip for now</button>
@@ -310,7 +328,7 @@ let routeDestination = ''; // cumulative miles along route path
 let activeTab = 'nearest';
 
 // ── VEHICLE SETTINGS ─────────────────────────────────────────────────────────
-const DEFAULT_SETTINGS = { mpg: 25, tank: 15, reserve: 25 };
+const DEFAULT_SETTINGS = { mpg: 25, tank: 15, reserve: 25, octanes: ['87','89','91'] };
 function loadSettings() {
   try {
     const s = JSON.parse(localStorage.getItem('puregas_vehicle') || '{}');
@@ -371,21 +389,30 @@ function darkMapStyle(){return[
 ];}
 
 // ── LOAD STATIONS ─────────────────────────────────────────────────────────────
+// Octane filter — returns true if station carries at least one selected grade
+function stationMatchesOctane(s){
+  const wanted=vehicle.octanes||DEFAULT_SETTINGS.octanes;
+  if(!wanted.length) return true;
+  if(!s.grades||!s.grades.length) return true; // no grade data, show it
+  return s.grades.some(g=>wanted.includes(g));
+}
+
 function loadStations(){
   const s=document.createElement('script');
   s.src='stations.js';
   s.onload=()=>{
-    stations=STATIONS_DATA.map(d=>({name:d[0],lat:d[1],lng:d[2],addr:d[3],fuel:d[4],_marker:null}));
+    stations=STATIONS_DATA.map(d=>({name:d[0],lat:d[1],lng:d[2],addr:d[3],fuel:d[4],grades:d[5]||[],_marker:null}));
     document.getElementById('loading-overlay').classList.add('hidden');
     document.getElementById('load-status').textContent=`✓ ${stations.length.toLocaleString()}`;
     document.getElementById('load-status').className='ready';
-    renderClusteredMarkers(stations);
+    const visibleStations=stations.filter(stationMatchesOctane);
+    renderClusteredMarkers(visibleStations);
     // Auto-open settings on first visit
     if(!localStorage.getItem('puregas_vehicle')){
       setTimeout(()=>openSettings(true),600);
     }
     const b=new google.maps.LatLngBounds();
-    stations.forEach(s=>b.extend({lat:s.lat,lng:s.lng}));
+    visibleStations.forEach(s=>b.extend({lat:s.lat,lng:s.lng}));
     map.fitBounds(b);
   };
   s.onerror=()=>{
@@ -434,10 +461,24 @@ function openSettings(firstTime){
   document.getElementById('set-mpg').value=vehicle.mpg||'';
   document.getElementById('set-tank').value=vehicle.tank||'';
   document.getElementById('set-reserve').value=vehicle.reserve||25;
+  // Populate octane checkboxes
+  const saved=vehicle.octanes||DEFAULT_SETTINGS.octanes;
+  document.querySelectorAll('#octane-grid input[type=checkbox]').forEach(cb=>{
+    const checked=saved.includes(cb.value);
+    cb.checked=checked;
+    cb.closest('.octane-check').classList.toggle('selected',checked);
+  });
+  // Checkbox toggle highlight
+  document.querySelectorAll('#octane-grid .octane-check').forEach(lbl=>{
+    lbl.onclick=()=>{
+      const cb=lbl.querySelector('input');
+      // toggled by browser naturally, just sync style
+      setTimeout(()=>lbl.classList.toggle('selected',cb.checked),0);
+    };
+  });
   updateReserveLabel();
   updateRangePreview();
   document.getElementById('settings-modal').classList.add('open');
-  // Focus MPG field after modal opens
   setTimeout(()=>document.getElementById('set-mpg').focus(),300);
 }
 function closeSettings(){ document.getElementById('settings-modal').classList.remove('open'); }
@@ -468,10 +509,14 @@ function saveSettingsFromModal(){
   const tank=parseFloat(document.getElementById('set-tank').value);
   const reserve=parseInt(document.getElementById('set-reserve').value);
   if(!mpg||!tank||mpg<1||tank<1){showStatus('Enter valid MPG and tank size');return;}
-  vehicle={mpg,tank,reserve};
+  const octanes=[...document.querySelectorAll('#octane-grid input[type=checkbox]:checked')].map(cb=>cb.value);
+  if(!octanes.length){showStatus('Select at least one octane grade');return;}
+  vehicle={mpg,tank,reserve,octanes};
   saveSettings(vehicle);
   closeSettings();
   showStatus(`Saved — ${Math.round(usableRange())} mi usable range`);
+  // Re-render map with new octane filter
+  if(stations.length) renderClusteredMarkers(stations.filter(stationMatchesOctane));
 }
 
 // ── MARKERS ───────────────────────────────────────────────────────────────────
@@ -666,7 +711,7 @@ function showRouteStations(corridorMiles,totalMiles){
   let minLat=Infinity,maxLat=-Infinity,minLng=Infinity,maxLng=-Infinity;
   for(const pt of routePath){const la=pt.lat(),lo=pt.lng();if(la<minLat)minLat=la;if(la>maxLat)maxLat=la;if(lo<minLng)minLng=lo;if(lo>maxLng)maxLng=lo;}
   minLat-=latPad;maxLat+=latPad;minLng-=lngPad;maxLng+=lngPad;
-  const boxCandidates=stations.filter(s=>s.lat>=minLat&&s.lat<=maxLat&&s.lng>=minLng&&s.lng<=maxLng);
+  const boxCandidates=stations.filter(s=>s.lat>=minLat&&s.lat<=maxLat&&s.lng>=minLng&&s.lng<=maxLng&&stationMatchesOctane(s));
 
   // Now only scan route points for the small box candidate set
   const near=boxCandidates.map(s=>{
@@ -680,45 +725,44 @@ function showRouteStations(corridorMiles,totalMiles){
 
   // ── SUGGESTED STOP LOGIC ──────────────────────────────────────────────────
   const usable=usableRange();
-  const suggestedStops=[];
-  let fuelMilesLeft=usable; // start with full usable tank
   let lastStopMileage=0;
 
-  // Walk route in usable-range chunks
+  // Walk route in usable-range chunks, collecting top 3 options per stop zone
+  const PICKS=3;
+  const stopGroups=[]; // array of arrays — each inner array is up to 3 station options
   while(true){
     const nextStopTarget=lastStopMileage+usable;
-    if(nextStopTarget>=totalMiles) break; // can make it to end
-
-    // Find stations in a window: from 75% of usable range to the target
+    if(nextStopTarget>=totalMiles) break;
     const windowStart=lastStopMileage+(usable*0.75);
     const candidates=near.filter(s=>s.routeMileage>=windowStart&&s.routeMileage<=nextStopTarget);
-
+    let picks;
     if(!candidates.length){
-      // No station in range — pick the one closest to target
-      const fallback=near.filter(s=>s.routeMileage>lastStopMileage).sort((a,b)=>Math.abs(a.routeMileage-nextStopTarget)-Math.abs(b.routeMileage-nextStopTarget));
-      if(fallback.length){
-        const pick=fallback[0];
-        suggestedStops.push({...pick,stopNum:suggestedStops.length+1,mileageAtStop:pick.routeMileage});
-        lastStopMileage=pick.routeMileage;
-      } else break;
+      const fallback=near.filter(s=>s.routeMileage>lastStopMileage)
+        .sort((a,b)=>Math.abs(a.routeMileage-nextStopTarget)-Math.abs(b.routeMileage-nextStopTarget));
+      picks=fallback.slice(0,PICKS);
     } else {
-      // Pick candidate with least detour (routeDist = distance off route)
-      const pick=candidates.sort((a,b)=>a.routeDist-b.routeDist)[0];
-      suggestedStops.push({...pick,stopNum:suggestedStops.length+1,mileageAtStop:pick.routeMileage});
-      lastStopMileage=pick.routeMileage;
+      picks=candidates.slice().sort((a,b)=>a.routeDist-b.routeDist).slice(0,PICKS);
     }
-    if(suggestedStops.length>20) break; // safety cap
+    if(!picks.length) break;
+    const stopNum=stopGroups.length+1;
+    stopGroups.push(picks.map((p,i)=>({...p,stopNum,optionNum:i+1,mileageAtStop:p.routeMileage})));
+    lastStopMileage=picks[0].routeMileage; // advance based on best pick
+    if(stopGroups.length>20) break;
   }
+
+  // Best pick per group (for map markers and summary count)
+  const suggestedStops=stopGroups.map(g=>g[0]);
 
   // Render clustered station markers first
   const nearSet=new Set(near);
   renderClusteredMarkers(near,nearSet);
 
-  // Place stop markers AFTER clusterer so they can't be absorbed into clusters
-  suggestedStops.forEach(s=>{
-    const m=makeStopMarker(s.lat,s.lng,`S${s.stopNum}`);
+  // Place stop markers AFTER clusterer — one green pin per stop zone at best option
+  stopGroups.forEach((grp,i)=>{
+    const best=grp[0];
+    const m=makeStopMarker(best.lat,best.lng,`S${best.stopNum}`);
     stopMarkers.push(m);
-    s._stopMarker=m;
+    best._stopMarker=m;
   });
 
   // Range summary bar
@@ -732,22 +776,31 @@ function showRouteStations(corridorMiles,totalMiles){
 
   if(!near.length){list.innerHTML=`<div class="empty">No stations within ${corridorMiles} mi of route</div>`;return;}
 
-  // Build result list — suggested stops first (in order), then remaining stations
-  const suggestedIds=new Set(suggestedStops.map(s=>`${s.lat},${s.lng}`));
 
-  // Suggested stops section
-  if(suggestedStops.length){
+  // Suggested stops section — show all options per stop zone
+  if(stopGroups.length){
     const lbl=document.createElement('div');
     lbl.className='section-label';
-    lbl.textContent=`🟢 Suggested Stops (${suggestedStops.length})`;
+    lbl.textContent=`🟢 Suggested Stops (${stopGroups.length} zone${stopGroups.length!==1?'s':''})`;
     list.appendChild(lbl);
-    suggestedStops.forEach(s=>{
-      const item=document.createElement('div');
-      item.className='result-item suggested-stop';
-      const ds=s.userDist!==null?`<span class="result-dist">${fmtMiles(s.userDist)}</span>`:'';
-      item.innerHTML=`${ds}<div class="stop-badge">Stop ${s.stopNum} · Mile ${Math.round(s.mileageAtStop)}</div><div class="result-name">${s.name}</div>${s.addr?`<div class="result-addr">${s.addr}</div>`:''}${s.fuel?`<div class="result-fuel">${s.fuel}</div>`:''}${s.routeDist>0.1?`<div class="stop-meta">+${fmtMiles(s.routeDist)} off route</div>`:'<div class="stop-meta">On route</div>'}`;
-      item.addEventListener('click',()=>{map.panTo({lat:s.lat,lng:s.lng});map.setZoom(14);if(s._marker)openInfoWindow(s._marker,s,true);closePanel();});
-      list.appendChild(item);
+    stopGroups.forEach(grp=>{
+      // Zone header
+      const zoneHdr=document.createElement('div');
+      zoneHdr.style.cssText='font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--ok);padding:6px 2px 2px';
+      zoneHdr.textContent=`Stop ${grp[0].stopNum}  ·  Mile ${Math.round(grp[0].mileageAtStop)}`;
+      list.appendChild(zoneHdr);
+      // Each option in this zone
+      grp.forEach((s,i)=>{
+        const item=document.createElement('div');
+        item.className='result-item suggested-stop';
+        if(i===0) item.style.borderLeft='3px solid var(--ok)';
+        else item.style.cssText+='opacity:0.85';
+        const ds=s.userDist!==null?`<span class="result-dist">${fmtMiles(s.userDist)}</span>`:'';
+        const optLabel=i===0?'<span class="stop-badge">Best option</span>':'';
+        item.innerHTML=`${ds}${optLabel}<div class="result-name">${s.name}</div>${s.addr?`<div class="result-addr">${s.addr}</div>`:''}${s.fuel?`<div class="result-fuel">${s.fuel}</div>`:''}${s.routeDist>0.1?`<div class="stop-meta">+${fmtMiles(s.routeDist)} off route</div>`:'<div class="stop-meta">On route</div>'}`;
+        item.addEventListener('click',()=>{map.panTo({lat:s.lat,lng:s.lng});map.setZoom(14);if(s._marker)openInfoWindow(s._marker,s,true);else openInfoWindow(null,s,true);closePanel();});
+        list.appendChild(item);
+      });
     });
   }
 
@@ -770,7 +823,7 @@ function showRouteStations(corridorMiles,totalMiles){
 function clearRoute(){
   directionsRenderer.setDirections({routes:[]});
   routePath=[];routeDistances=[];routeDestination='';
-  renderClusteredMarkers(stations);
+  renderClusteredMarkers(stations.filter(stationMatchesOctane));
   clearStopMarkers();
   document.getElementById('results-route').innerHTML='<div class="empty">Enter a route to see nearby stations</div>';
   document.getElementById('route-clear-btn').style.display='none';
