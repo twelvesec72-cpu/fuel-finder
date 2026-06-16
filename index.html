@@ -32,7 +32,7 @@
     #settings-btn:active{color:var(--text);}
 
     #map-wrap{flex:1;position:relative;}
-    #map{width:100%;height:100%;}
+    #map{width:100%;height:100%;background:#1a1a1f;}
 
     /* Panel */
     #panel{position:absolute;top:0;left:0;width:var(--panel-w);max-width:100%;height:100%;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:50;transform:translateX(-100%);transition:transform 0.28s cubic-bezier(.4,0,.2,1);}
@@ -353,7 +353,8 @@ function initMap(){
   map=new google.maps.Map(document.getElementById('map'),{
     center:{lat:39.5,lng:-98.35},zoom:5,mapTypeId:'roadmap',
     disableDefaultUI:true,zoomControl:false,
-    styles:darkMapStyle(),gestureHandling:'greedy'
+    mapId:'12776501e64369ef5c438e0e',
+    gestureHandling:'greedy'
   });
   infoWindow=new google.maps.InfoWindow();
   directionsService=new google.maps.DirectionsService();
@@ -366,18 +367,6 @@ function initMap(){
   loadStations();
 }
 
-function darkMapStyle(){return[
-  {elementType:'geometry',stylers:[{color:'#1a1a1f'}]},
-  {elementType:'labels.text.fill',stylers:[{color:'#8a8a9a'}]},
-  {elementType:'labels.text.stroke',stylers:[{color:'#0d0d0f'}]},
-  {featureType:'road',elementType:'geometry',stylers:[{color:'#2e2e3a'}]},
-  {featureType:'road.highway',elementType:'geometry',stylers:[{color:'#3a3a48'}]},
-  {featureType:'road.highway',elementType:'labels.text.fill',stylers:[{color:'#b0b0c0'}]},
-  {featureType:'water',elementType:'geometry',stylers:[{color:'#0d1520'}]},
-  {featureType:'poi',stylers:[{visibility:'off'}]},
-  {featureType:'transit',stylers:[{visibility:'off'}]},
-  {featureType:'administrative',elementType:'geometry',stylers:[{color:'#2e2e3a'}]},
-];}
 
 // ── LOAD STATIONS ─────────────────────────────────────────────────────────────
 // Octane filter — returns true if station carries at least one selected grade
@@ -507,7 +496,7 @@ function saveSettingsFromModal(){
 // ── MARKERS ───────────────────────────────────────────────────────────────────
 function clearAllMarkers(){
   if(clustererInstance){clustererInstance.clearMarkers();clustererInstance=null;}
-  activeMarkers.forEach(m=>m.setMap(null));
+  activeMarkers.forEach(m=>{m.map=null;});
   activeMarkers=[];
   clearStopMarkers();
 }
@@ -517,12 +506,14 @@ function clearStopMarkers(){
 }
 
 function makeMarker(s,highlighted){
-  const m=new google.maps.Marker({
-    position:{lat:s.lat,lng:s.lng},title:s.name,
-    icon:{path:google.maps.SymbolPath.CIRCLE,scale:highlighted?9:7,
-      fillColor:'#f5a623',fillOpacity:highlighted?1:0.9,
-      strokeColor:highlighted?'#fff':'#0d0d0f',strokeWeight:highlighted?2.5:2},
-    optimized:true
+  const sz=highlighted?18:14;
+  const dot=document.createElement('div');
+  dot.style.cssText=`width:${sz}px;height:${sz}px;border-radius:50%;background:#f5a623;border:${highlighted?'2.5px solid #fff':'2px solid #0d0d0f'};opacity:${highlighted?1:0.9};`;
+  const m=new google.maps.marker.AdvancedMarkerElement({
+    position:{lat:s.lat,lng:s.lng},
+    title:s.name,
+    content:dot,
+    map:null
   });
   m.addListener('click',()=>openInfoWindow(m,s,false));
   return m;
@@ -549,7 +540,7 @@ function renderClusteredMarkers(list,highlightSet){
   list.forEach(s=>{
     const hl=highlightSet?highlightSet.has(s):false;
     const m=makeMarker(s,hl);
-    m.setMap(map);
+    m.map=map;
     activeMarkers.push(m);
     s._marker=m;
   });
@@ -559,9 +550,10 @@ function renderClusteredMarkers(list,highlightSet){
       renderer:{render({count,position}){
         const sz=count<10?34:count<50?40:count<200?46:52;
         const fs=sz<40?11:sz<46?12:13;
-        return new google.maps.Marker({position,
-          icon:{url:`data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='${sz}' height='${sz}'><circle cx='${sz/2}' cy='${sz/2}' r='${sz/2-2}' fill='%23f5a623' stroke='%230d0d0f' stroke-width='2'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='system-ui' font-size='${fs}' font-weight='700' fill='%23000'>${count>999?'1k+':count}</text></svg>`,
-          scaledSize:new google.maps.Size(sz,sz),anchor:new google.maps.Point(sz/2,sz/2)},zIndex:1000});
+        const el=document.createElement('div');
+        el.style.cssText=`width:${sz}px;height:${sz}px;border-radius:50%;background:#f5a623;border:2px solid #0d0d0f;display:flex;align-items:center;justify-content:center;font-family:system-ui;font-size:${fs}px;font-weight:700;color:#000;`;
+        el.textContent=count>999?'1k+':count;
+        return new google.maps.marker.AdvancedMarkerElement({position,content:el,zIndex:1000});
       }}
     });
   }
@@ -589,9 +581,10 @@ function locateUser(){
   navigator.geolocation.getCurrentPosition(pos=>{
     userLatLng=new google.maps.LatLng(pos.coords.latitude,pos.coords.longitude);
     if(!userMarker){
-      userMarker=new google.maps.Marker({position:userLatLng,map,title:'You',
-        icon:{path:google.maps.SymbolPath.CIRCLE,scale:10,fillColor:'#4caf7d',fillOpacity:1,strokeColor:'#fff',strokeWeight:2.5},zIndex:999});
-    } else {userMarker.setPosition(userLatLng);}
+      const youDot=document.createElement('div');
+      youDot.style.cssText='width:18px;height:18px;border-radius:50%;background:#4caf7d;border:2.5px solid #fff;box-shadow:0 0 0 4px rgba(76,175,125,0.3);';
+      userMarker=new google.maps.marker.AdvancedMarkerElement({position:userLatLng,map,title:'You',content:youDot,zIndex:999});
+    } else {userMarker.position=userLatLng;}
     map.panTo(userLatLng);
     if(map.getZoom()<10)map.setZoom(12);
     showStatus('Location found');
@@ -820,7 +813,7 @@ window.initMap=initMap;
 </script>
 
 <script src="https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js"></script>
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCGYMaGaZJ3Nsb-r-AmFZfp27_bHoibnhI&libraries=geometry&callback=initMap" async defer></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCGYMaGaZJ3Nsb-r-AmFZfp27_bHoibnhI&libraries=geometry,marker&callback=initMap" async defer></script>
 <script>
   if('serviceWorker' in navigator){
     window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
