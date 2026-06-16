@@ -457,15 +457,17 @@ function makeMarker(s,highlighted){
 }
 
 function makeStopMarker(lat,lng,label){
-  const sz=36;
+  const sz=40;
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${sz}" height="${sz+10}">
+    <circle cx="${sz/2}" cy="${sz/2}" r="${sz/2-2}" fill="#4caf7d" stroke="#0d0d0f" stroke-width="2.5"/>
+    <text x="${sz/2}" y="${sz/2+1}" dominant-baseline="middle" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" font-weight="800" fill="#000">${label}</text>
+    <polygon points="${sz/2-6},${sz-2} ${sz/2+6},${sz-2} ${sz/2},${sz+8}" fill="#4caf7d"/>
+  </svg>`;
+  const encoded='data:image/svg+xml;base64,'+btoa(svg);
   return new google.maps.Marker({
     position:{lat,lng},
-    icon:{
-      url:`data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='${sz}' height='${sz+8}'><circle cx='${sz/2}' cy='${sz/2}' r='${sz/2-2}' fill='%234caf7d' stroke='%230d0d0f' stroke-width='2'/><text x='50%25' y='${sz/2+1}' dominant-baseline='middle' text-anchor='middle' font-family='system-ui' font-size='13' font-weight='700' fill='%23000'>${label}</text><polygon points='${sz/2-5},${sz-2} ${sz/2+5},${sz-2} ${sz/2},${sz+6}' fill='%234caf7d'/></svg>`,
-      scaledSize:new google.maps.Size(sz,sz+8),
-      anchor:new google.maps.Point(sz/2,sz+8)
-    },
-    zIndex:500,
+    icon:{url:encoded,scaledSize:new google.maps.Size(sz,sz+10),anchor:new google.maps.Point(sz/2,sz+10)},
+    zIndex:9999,
     map
   });
 }
@@ -659,16 +661,16 @@ function showRouteStations(corridorMiles,totalMiles){
     if(suggestedStops.length>20) break; // safety cap
   }
 
-  // Place stop markers on map
+  // Render clustered station markers first
+  const nearSet=new Set(near);
+  renderClusteredMarkers(near,nearSet);
+
+  // Place stop markers AFTER clusterer so they can't be absorbed into clusters
   suggestedStops.forEach(s=>{
     const m=makeStopMarker(s.lat,s.lng,`S${s.stopNum}`);
     stopMarkers.push(m);
     s._stopMarker=m;
   });
-
-  // Render markers — highlight suggested stops
-  const nearSet=new Set(near);
-  renderClusteredMarkers(near,nearSet);
 
   // Range summary bar
   const summaryEl=document.getElementById('range-summary');
