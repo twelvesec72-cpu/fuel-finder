@@ -33,6 +33,9 @@
 
     #map-wrap{flex:1;position:relative;}
     #map{width:100%;height:100%;background:#1a1a1f;}
+    #zoom-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:30;}
+    #zoom-overlay.hidden{display:none;}
+    #zoom-msg{background:rgba(13,13,15,0.82);border:1px solid var(--border);border-radius:20px;padding:10px 20px;font-size:14px;color:var(--muted);backdrop-filter:blur(6px);}
 
     /* Panel */
     #panel{position:absolute;top:0;left:0;width:var(--panel-w);max-width:100%;height:100%;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:50;transform:translateX(-100%);transition:transform 0.28s cubic-bezier(.4,0,.2,1);}
@@ -297,6 +300,9 @@
       </div>
     </div>
 
+    <div id="zoom-overlay">
+      <div id="zoom-msg">🗺️ Zoom in to view stations</div>
+    </div>
     <div id="fab-group">
       <button class="fab" id="fab-locate" title="My Location">📍</button>
       <button class="fab" id="fab-menu" title="Menu">☰</button>
@@ -383,8 +389,24 @@ function stationMatchesOctane(s){
   return (s.maxOct||0)>=min;
 }
 
+const ZOOM_THRESHOLD = 7;
+
 function renderViewportMarkers(){
   if(!map||!stations.length) return;
+  const zoom=map.getZoom();
+  const overlay=document.getElementById('zoom-overlay');
+  if(zoom < ZOOM_THRESHOLD){
+    // Hide all markers, show overlay
+    overlay.classList.remove('hidden');
+    if(activeMarkers.length){
+      activeMarkers.forEach(m=>{m.map=null;});
+      activeMarkers=[];
+      if(clustererInstance){clustererInstance.clearMarkers();clustererInstance=null;}
+      stations.forEach(s=>{s._marker=null;});
+    }
+    return;
+  }
+  overlay.classList.add('hidden');
   const bounds=map.getBounds();
   if(!bounds) return;
   const ne=bounds.getNorthEast(), sw=bounds.getSouthWest();
@@ -448,13 +470,11 @@ function loadStations(){
     document.getElementById('loading-overlay').classList.add('hidden');
     document.getElementById('load-status').textContent=`✓ ${stations.length.toLocaleString()}`;
     document.getElementById('load-status').className='ready';
-    // Fit map to full data first, then viewport culling takes over
-    const allVisible=stations.filter(stationMatchesOctane);
+    // Fit map to full US bounds — overlay shows until user zooms in
     const b=new google.maps.LatLngBounds();
-    allVisible.forEach(s=>b.extend({lat:s.lat,lng:s.lng}));
+    b.extend({lat:24.5,lng:-124.8}); // SW USA
+    b.extend({lat:49.4,lng:-66.9});  // NE USA
     map.fitBounds(b);
-    // Wait for fitBounds to settle then render viewport
-    google.maps.event.addListenerOnce(map,'idle',renderViewportMarkers);
     // Auto-open settings on first visit
     if(!localStorage.getItem('puregas_vehicle')){
       setTimeout(()=>openSettings(true),600);
@@ -874,6 +894,7 @@ function clearRoute(){
   viewportCullingEnabled=true;
   clearStopMarkers();
   renderViewportMarkers();
+  document.getElementById('zoom-overlay').classList.add('hidden');
   document.getElementById('results-route').innerHTML='<div class="empty">Enter a route to see nearby stations</div>';
   document.getElementById('route-clear-btn').style.display='none';
   document.getElementById('range-summary').classList.remove('visible');
