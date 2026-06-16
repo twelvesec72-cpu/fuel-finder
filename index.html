@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Fuel Finder" />
-  <title>Fuel Finder</title>
+  <title>Pure Gas Finder</title>
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="icon-192.png" />
   <style>
@@ -24,23 +24,24 @@
       --radius:    12px;
       --panel-w:   340px;
       --header-h:  56px;
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-top:    env(safe-area-inset-top, 0px);
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; overflow: hidden; font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); }
-    #app { display: flex; flex-direction: column; height: 100%; }
+    #app { display: flex; flex-direction: column; height: 100%; padding-top: var(--safe-top); }
 
     #header {
-      height: var(--header-h);
-      background: var(--surface);
+      height: var(--header-h); background: var(--surface);
       border-bottom: 1px solid var(--border);
-      display: flex; align-items: center;
-      padding: 0 12px; gap: 10px;
+      display: flex; align-items: center; padding: 0 16px; gap: 10px;
       z-index: 100; flex-shrink: 0;
     }
-    #logo { font-size: 18px; font-weight: 700; letter-spacing: -0.5px; color: var(--accent); white-space: nowrap; }
+    #logo { font-size: 17px; font-weight: 700; letter-spacing: -0.5px; color: var(--accent); white-space: nowrap; }
     #logo span { color: var(--text); font-weight: 300; }
-    #kml-status { font-size: 12px; color: var(--ok); }
-    #kml-status.error { color: var(--danger); }
+    #load-status { font-size: 12px; color: var(--muted); margin-left: auto; }
+    #load-status.ready { color: var(--ok); }
+    #load-status.error { color: var(--danger); }
 
     #map-wrap { flex: 1; position: relative; }
     #map { width: 100%; height: 100%; }
@@ -57,7 +58,7 @@
     #panel.open { transform: translateX(0); }
     #panel-overlay {
       display: none; position: absolute; inset: 0;
-      background: rgba(0,0,0,.55); z-index: 49;
+      background: rgba(0,0,0,.6); z-index: 49;
     }
     #panel-overlay.visible { display: block; }
     #panel-header {
@@ -65,55 +66,65 @@
       display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
     }
     #panel-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
-    #panel-body { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 16px; }
+    #panel-body {
+      flex: 1; overflow-y: auto; padding: 12px;
+      display: flex; flex-direction: column; gap: 14px;
+      padding-bottom: calc(12px + var(--safe-bottom));
+    }
     #panel-body::-webkit-scrollbar { width: 4px; }
     #panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
     /* Tabs */
     #tabs { display: flex; gap: 4px; background: var(--surface2); border-radius: var(--radius); padding: 4px; flex-shrink: 0; }
     .tab-btn {
-      flex: 1; padding: 8px 4px; border: none; border-radius: 8px;
+      flex: 1; padding: 9px 4px; border: none; border-radius: 8px;
       background: transparent; color: var(--muted);
-      font-size: 12px; font-weight: 600; cursor: pointer;
-      transition: background .15s, color .15s;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      transition: background .15s, color .15s; -webkit-tap-highlight-color: transparent;
     }
     .tab-btn.active { background: var(--accent); color: #000; }
 
-    /* Inputs */
+    /* Search input */
     .input-wrap { position: relative; }
     .input-wrap input {
-      width: 100%; padding: 10px 12px 10px 36px;
+      width: 100%; padding: 12px 12px 12px 38px;
       background: var(--surface2); border: 1px solid var(--border);
       border-radius: var(--radius); color: var(--text);
-      font-size: 14px; outline: none; transition: border-color .15s;
+      font-size: 16px; /* 16px prevents iOS zoom */ outline: none;
+      transition: border-color .15s; -webkit-appearance: none;
     }
     .input-wrap input:focus { border-color: var(--accent); }
     .input-wrap input::placeholder { color: var(--muted); }
-    .input-wrap .ico { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 16px; pointer-events: none; }
+    .input-wrap .ico { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 16px; pointer-events: none; }
 
-    /* Route */
-    #route-section { display: flex; flex-direction: column; gap: 8px; }
-    .route-row { display: flex; align-items: center; gap: 8px; }
-    .route-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    /* Route inputs */
+    #route-section { display: flex; flex-direction: column; gap: 10px; }
+    .route-row { display: flex; align-items: center; gap: 10px; }
+    .route-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
     .route-dot.start { background: var(--ok); }
     .route-dot.end   { background: var(--danger); }
     .route-row input {
-      flex: 1; padding: 10px 12px;
+      flex: 1; padding: 12px;
       background: var(--surface2); border: 1px solid var(--border);
       border-radius: var(--radius); color: var(--text);
-      font-size: 14px; outline: none; transition: border-color .15s;
+      font-size: 16px; outline: none; transition: border-color .15s;
+      -webkit-appearance: none;
     }
     .route-row input:focus { border-color: var(--accent); }
     .route-row input::placeholder { color: var(--muted); }
     #corridor-row { display: flex; align-items: center; justify-content: space-between; }
-    #corridor-row label { font-size: 12px; color: var(--muted); }
+    #corridor-row label { font-size: 13px; color: var(--muted); }
     #corridor-row select {
       background: var(--surface2); border: 1px solid var(--border);
-      border-radius: 8px; color: var(--text); font-size: 12px; padding: 4px 8px; outline: none;
+      border-radius: 8px; color: var(--text); font-size: 14px; padding: 6px 10px; outline: none;
     }
 
     /* Buttons */
-    .btn { width: 100%; padding: 11px; border: none; border-radius: var(--radius); font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity .15s; }
+    .btn {
+      width: 100%; padding: 13px; border: none; border-radius: var(--radius);
+      font-size: 15px; font-weight: 600; cursor: pointer; transition: opacity .15s;
+      -webkit-tap-highlight-color: transparent;
+    }
     .btn:active { opacity: .75; }
     .btn-accent { background: var(--accent); color: #000; }
     .btn-ghost { background: var(--surface2); border: 1px solid var(--border); color: var(--text); }
@@ -121,67 +132,76 @@
     /* Results */
     .result-item {
       background: var(--surface2); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 12px; cursor: pointer;
-      transition: border-color .15s, background .15s;
+      border-radius: var(--radius); padding: 13px; cursor: pointer;
+      transition: border-color .15s; -webkit-tap-highlight-color: transparent;
+      min-height: 52px; /* comfortable tap target */
     }
-    .result-item:hover { border-color: var(--accent); background: #1f1f26; }
+    .result-item:active { border-color: var(--accent); background: #1f1f26; }
     .result-item.on-route { border-left: 3px solid var(--accent); }
-    .result-name { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
-    .result-meta { font-size: 12px; color: var(--muted); }
-    .result-dist { font-size: 12px; color: var(--accent); font-weight: 600; float: right; }
+    .result-name { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
+    .result-addr { font-size: 12px; color: var(--muted); margin-bottom: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .result-fuel { font-size: 11px; color: var(--accent); }
+    .result-dist { font-size: 12px; color: var(--accent); font-weight: 700; float: right; margin-left: 8px; }
 
     /* Nearest banner */
     #nearest-banner {
       display: none;
       background: linear-gradient(135deg, #1c1a12, #1f1c0f);
       border: 1px solid var(--accent); border-radius: var(--radius);
-      padding: 12px; cursor: pointer;
+      padding: 14px; cursor: pointer; -webkit-tap-highlight-color: transparent;
     }
     #nearest-banner.visible { display: block; }
     #nearest-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--accent); margin-bottom: 4px; }
-    #nearest-name { font-size: 15px; font-weight: 700; }
-    #nearest-dist { font-size: 13px; color: var(--muted); margin-top: 2px; }
+    #nearest-name { font-size: 15px; font-weight: 700; margin-bottom: 2px; }
+    #nearest-addr { font-size: 12px; color: var(--muted); margin-bottom: 2px; }
+    #nearest-dist { font-size: 13px; color: var(--accent); font-weight: 600; }
 
     /* FABs */
-    #fab-group { position: absolute; bottom: 24px; right: 16px; display: flex; flex-direction: column; gap: 10px; z-index: 40; }
-    .fab {
-      width: 48px; height: 48px; border-radius: 50%; border: none; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 20px; box-shadow: 0 4px 16px rgba(0,0,0,.5); transition: transform .15s;
+    #fab-group {
+      position: absolute; bottom: calc(24px + var(--safe-bottom)); right: 16px;
+      display: flex; flex-direction: column; gap: 12px; z-index: 40;
     }
-    .fab:active { transform: scale(.92); }
+    .fab {
+      width: 52px; height: 52px; border-radius: 50%; border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; box-shadow: 0 4px 20px rgba(0,0,0,.6);
+      transition: transform .15s; -webkit-tap-highlight-color: transparent;
+    }
+    .fab:active { transform: scale(.90); }
     #fab-locate { background: var(--accent); color: #000; }
     #fab-menu   { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
 
-    /* Status */
+    /* Status pill */
     #status {
       position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
       background: var(--surface); border: 1px solid var(--border);
-      border-radius: 20px; padding: 6px 14px; font-size: 12px; color: var(--muted);
+      border-radius: 20px; padding: 7px 16px; font-size: 13px; color: var(--muted);
       z-index: 40; white-space: nowrap; transition: opacity .3s; pointer-events: none;
     }
     #status.hidden { opacity: 0; }
 
-    .close-btn { background: none; border: none; color: var(--muted); font-size: 20px; cursor: pointer; line-height: 1; padding: 4px; }
-    .close-btn:hover { color: var(--text); }
-    .empty { text-align: center; color: var(--muted); font-size: 13px; padding: 24px 0; }
-
-    /* KML drop zone */
-    #kml-drop-zone {
-      border: 2px dashed var(--border); border-radius: var(--radius);
-      padding: 24px 16px; text-align: center; color: var(--muted);
-      font-size: 13px; cursor: pointer; transition: border-color .15s;
+    .close-btn {
+      background: none; border: none; color: var(--muted);
+      font-size: 22px; cursor: pointer; line-height: 1; padding: 6px;
+      -webkit-tap-highlight-color: transparent;
     }
-    #kml-drop-zone:hover, #kml-drop-zone.drag-over { border-color: var(--accent); color: var(--text); }
-    #kml-drop-zone .drop-icon { font-size: 28px; margin-bottom: 8px; }
+    .close-btn:active { color: var(--text); }
+    .empty { text-align: center; color: var(--muted); font-size: 13px; padding: 32px 0; }
 
-    /* Cluster styles */
-    .cluster-label {
-      background: var(--accent); color: #000;
-      border-radius: 50%; font-weight: 700; font-size: 12px;
-      display: flex; align-items: center; justify-content: center;
-      border: 2px solid #0d0d0f;
+    /* Loading overlay */
+    #loading-overlay {
+      position: absolute; inset: 0; background: var(--bg);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 200; gap: 16px;
     }
+    #loading-overlay.hidden { display: none; }
+    .spinner {
+      width: 36px; height: 36px; border: 3px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loading-text { font-size: 14px; color: var(--muted); }
 
     /* Info window */
     .gm-style .gm-style-iw-c {
@@ -191,13 +211,15 @@
     .gm-style .gm-style-iw-d { overflow: hidden !important; padding: 0 !important; }
     .gm-style .gm-style-iw-t::after { background: var(--surface) !important; }
     .gm-style .gm-ui-hover-effect { display: none !important; }
-    .info-win { padding: 14px 16px; min-width: 180px; }
-    .info-win-name { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
-    .info-win-dist { font-size: 12px; color: var(--accent); margin-bottom: 8px; }
+    .info-win { padding: 14px 16px; min-width: 200px; max-width: 260px; }
+    .info-win-name { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+    .info-win-addr { font-size: 12px; color: var(--muted); margin-bottom: 3px; }
+    .info-win-fuel { font-size: 12px; color: var(--accent); margin-bottom: 10px; }
+    .info-win-dist { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
     .info-win-btn {
-      display: block; width: 100%; padding: 8px;
+      display: block; width: 100%; padding: 10px;
       background: var(--accent); color: #000; border: none;
-      border-radius: 8px; font-size: 13px; font-weight: 600;
+      border-radius: 8px; font-size: 14px; font-weight: 600;
       cursor: pointer; text-align: center; text-decoration: none;
     }
 
@@ -207,13 +229,18 @@
 <body>
 <div id="app">
   <header id="header">
-    <div id="logo">⛽ Fuel<span>Finder</span></div>
-    <div style="flex:1"></div>
-    <div id="kml-status"></div>
+    <div id="logo">⛽ Pure<span>Gas</span></div>
+    <div id="load-status">Loading…</div>
   </header>
 
   <div id="map-wrap">
     <div id="map"></div>
+
+    <!-- Loading overlay -->
+    <div id="loading-overlay">
+      <div class="spinner"></div>
+      <div id="loading-text">Loading stations…</div>
+    </div>
 
     <div id="panel-overlay"></div>
     <div id="panel">
@@ -223,50 +250,42 @@
       </div>
       <div id="panel-body">
 
-        <div id="kml-section">
-          <div id="kml-drop-zone" onclick="document.getElementById('kml-file-input').click()">
-            <div class="drop-icon">📂</div>
-            <div>Tap to load KML file</div>
-            <div style="font-size:11px;margin-top:4px">or drop it here</div>
-          </div>
-          <input type="file" id="kml-file-input" accept=".kml,.kmz" style="display:none" />
-        </div>
-
-        <div id="tabs" style="display:none">
+        <div id="tabs">
           <button class="tab-btn active" data-tab="nearest">Nearest</button>
           <button class="tab-btn" data-tab="search">Search</button>
           <button class="tab-btn" data-tab="route">Route</button>
         </div>
 
         <!-- Nearest tab -->
-        <div id="tab-nearest" class="tab-pane" style="display:flex;flex-direction:column;gap:10px">
+        <div id="tab-nearest" style="display:flex;flex-direction:column;gap:10px">
           <div id="nearest-banner">
             <div id="nearest-label">Closest Station</div>
             <div id="nearest-name">—</div>
+            <div id="nearest-addr"></div>
             <div id="nearest-dist">—</div>
           </div>
           <div id="results-nearest" class="empty">Tap 📍 to find your location</div>
         </div>
 
         <!-- Search tab -->
-        <div id="tab-search" class="tab-pane" style="display:none;flex-direction:column;gap:10px">
+        <div id="tab-search" style="display:none;flex-direction:column;gap:10px">
           <div class="input-wrap">
             <span class="ico">🔍</span>
-            <input type="text" id="search-input" placeholder="Search stations…" autocomplete="off" />
+            <input type="text" id="search-input" placeholder="Search stations…" autocomplete="off" autocorrect="off" autocapitalize="off" />
           </div>
-          <div id="results-search" class="empty">Load a KML file to search stations</div>
+          <div id="results-search" class="empty">Type to search 17,820 stations</div>
         </div>
 
         <!-- Route tab -->
-        <div id="tab-route" class="tab-pane" style="display:none;flex-direction:column;gap:10px">
+        <div id="tab-route" style="display:none;flex-direction:column;gap:10px">
           <div id="route-section">
             <div class="route-row">
               <div class="route-dot start"></div>
-              <input type="text" id="route-start" placeholder="Start (or use GPS)" />
+              <input type="text" id="route-start" placeholder="Start (or use GPS)" autocorrect="off" />
             </div>
             <div class="route-row">
               <div class="route-dot end"></div>
-              <input type="text" id="route-end" placeholder="Destination" />
+              <input type="text" id="route-end" placeholder="Destination" autocorrect="off" />
             </div>
             <div id="corridor-row">
               <label>Show stations within</label>
@@ -289,205 +308,150 @@
 
     <div id="fab-group">
       <button class="fab" id="fab-locate" title="My Location">📍</button>
-      <button class="fab" id="fab-menu" title="Open Panel">☰</button>
+      <button class="fab" id="fab-menu" title="Menu">☰</button>
     </div>
 
-    <div id="status" class="hidden">Loading…</div>
+    <div id="status" class="hidden"></div>
   </div>
 </div>
 
 <script>
-// ─── STATE ──────────────────────────────────────────────────────────────────
 let map, infoWindow, directionsService, directionsRenderer, clustererInstance;
 let userMarker = null, userLatLng = null;
-let stations = [];        // { name, lat, lng } — raw data only, NO markers until needed
-let activeMarkers = [];   // markers currently on map
+let stations = [];
+let activeMarkers = [];
 let routePath = [];
 let activeTab = 'nearest';
-let kmlLoaded = false;
 
-// ─── UTILS ──────────────────────────────────────────────────────────────────
-function haversineMiles(lat1, lng1, lat2, lng2) {
-  const R = 3958.8, dLat = (lat2-lat1)*Math.PI/180, dLng = (lng2-lng1)*Math.PI/180;
-  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
-  return R * 2 * Math.asin(Math.sqrt(a));
+function haversineMiles(lat1,lng1,lat2,lng2){
+  const R=3958.8,dLat=(lat2-lat1)*Math.PI/180,dLng=(lng2-lng1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R*2*Math.asin(Math.sqrt(a));
 }
-function fmtMiles(m) {
-  if (m < 0.1) return `${Math.round(m*5280)} ft`;
-  return m < 10 ? `${m.toFixed(1)} mi` : `${Math.round(m)} mi`;
+function fmtMiles(m){
+  if(m<0.1) return `${Math.round(m*5280)} ft`;
+  return m<10?`${m.toFixed(1)} mi`:`${Math.round(m)} mi`;
 }
-function showStatus(msg, ms=2500) {
-  const el = document.getElementById('status');
-  el.textContent = msg; el.classList.remove('hidden');
-  clearTimeout(el._t); el._t = setTimeout(() => el.classList.add('hidden'), ms);
+function showStatus(msg,ms=2500){
+  const el=document.getElementById('status');
+  el.textContent=msg; el.classList.remove('hidden');
+  clearTimeout(el._t); el._t=setTimeout(()=>el.classList.add('hidden'),ms);
 }
 
-// ─── MAP INIT ────────────────────────────────────────────────────────────────
-function initMap() {
-  map = new google.maps.Map(document.getElementById('map'), {
-    center: { lat: 39.5, lng: -98.35 }, zoom: 5,
-    mapTypeId: 'roadmap', disableDefaultUI: true, zoomControl: false,
-    styles: darkMapStyle()
+function initMap(){
+  map=new google.maps.Map(document.getElementById('map'),{
+    center:{lat:39.5,lng:-98.35},zoom:5,
+    mapTypeId:'roadmap',disableDefaultUI:true,zoomControl:false,
+    styles:darkMapStyle(),
+    gestureHandling:'greedy' // one-finger pan on mobile
   });
-  infoWindow = new google.maps.InfoWindow();
-  directionsService = new google.maps.DirectionsService();
-  directionsRenderer = new google.maps.DirectionsRenderer({
-    suppressMarkers: true,
-    polylineOptions: { strokeColor: '#f5a623', strokeWeight: 4, strokeOpacity: 0.85 }
+  infoWindow=new google.maps.InfoWindow();
+  directionsService=new google.maps.DirectionsService();
+  directionsRenderer=new google.maps.DirectionsRenderer({
+    suppressMarkers:true,
+    polylineOptions:{strokeColor:'#f5a623',strokeWeight:5,strokeOpacity:0.85}
   });
   directionsRenderer.setMap(map);
-  setupEventListeners();
+  setupEvents();
+  loadStations();
 }
 
-function darkMapStyle() {
-  return [
-    { elementType: 'geometry', stylers: [{ color: '#1a1a1f' }] },
-    { elementType: 'labels.text.fill', stylers: [{ color: '#8a8a9a' }] },
-    { elementType: 'labels.text.stroke', stylers: [{ color: '#0d0d0f' }] },
-    { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#2e2e3a' }] },
-    { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#3a3a48' }] },
-    { featureType: 'road.highway', elementType: 'labels.text.fill', stylers: [{ color: '#b0b0c0' }] },
-    { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0d1520' }] },
-    { featureType: 'poi', stylers: [{ visibility: 'off' }] },
-    { featureType: 'transit', stylers: [{ visibility: 'off' }] },
-    { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: '#2e2e3a' }] },
+function darkMapStyle(){
+  return[
+    {elementType:'geometry',stylers:[{color:'#1a1a1f'}]},
+    {elementType:'labels.text.fill',stylers:[{color:'#8a8a9a'}]},
+    {elementType:'labels.text.stroke',stylers:[{color:'#0d0d0f'}]},
+    {featureType:'road',elementType:'geometry',stylers:[{color:'#2e2e3a'}]},
+    {featureType:'road.highway',elementType:'geometry',stylers:[{color:'#3a3a48'}]},
+    {featureType:'road.highway',elementType:'labels.text.fill',stylers:[{color:'#b0b0c0'}]},
+    {featureType:'water',elementType:'geometry',stylers:[{color:'#0d1520'}]},
+    {featureType:'poi',stylers:[{visibility:'off'}]},
+    {featureType:'transit',stylers:[{visibility:'off'}]},
+    {featureType:'administrative',elementType:'geometry',stylers:[{color:'#2e2e3a'}]},
   ];
 }
 
-// ─── EVENTS ──────────────────────────────────────────────────────────────────
-function setupEventListeners() {
-  document.getElementById('fab-menu').addEventListener('click', openPanel);
-  document.getElementById('panel-close').addEventListener('click', closePanel);
-  document.getElementById('panel-overlay').addEventListener('click', closePanel);
-  document.getElementById('fab-locate').addEventListener('click', locateUser);
-  document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
-  document.getElementById('search-input').addEventListener('input', onSearch);
-  document.getElementById('route-go-btn').addEventListener('click', calcRoute);
-  document.getElementById('route-clear-btn').addEventListener('click', clearRoute);
-
-  const kmlInput = document.getElementById('kml-file-input');
-  kmlInput.addEventListener('change', e => loadKMLFile(e.target.files[0]));
-
-  const dropZone = document.getElementById('kml-drop-zone');
-  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
-  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-  dropZone.addEventListener('drop', e => {
-    e.preventDefault(); dropZone.classList.remove('drag-over');
-    if (e.dataTransfer.files[0]) loadKMLFile(e.dataTransfer.files[0]);
-  });
-}
-
-function openPanel()  { document.getElementById('panel').classList.add('open'); document.getElementById('panel-overlay').classList.add('visible'); }
-function closePanel() { document.getElementById('panel').classList.remove('open'); document.getElementById('panel-overlay').classList.remove('visible'); }
-
-// ─── KML PARSER ─────────────────────────────────────────────────────────────
-// Parse into raw data only — NO markers created here
-function loadKMLFile(file) {
-  if (!file) return;
-  const statusEl = document.getElementById('kml-status');
-  statusEl.textContent = 'Parsing…'; statusEl.className = '';
-  const reader = new FileReader();
-  reader.onload = e => {
-    try {
-      const xml = new DOMParser().parseFromString(e.target.result, 'text/xml');
-      parseKML(xml);
-    } catch(err) {
-      statusEl.textContent = 'KML parse error'; statusEl.className = 'error';
-    }
+function loadStations(){
+  const script=document.createElement('script');
+  script.src='stations.js';
+  script.onload=()=>{
+    // STATIONS_DATA is now available: [[name,lat,lng,address,fuel], ...]
+    stations=STATIONS_DATA.map(d=>({name:d[0],lat:d[1],lng:d[2],addr:d[3],fuel:d[4],_marker:null}));
+    document.getElementById('loading-overlay').classList.add('hidden');
+    document.getElementById('load-status').textContent=`✓ ${stations.length.toLocaleString()} stations`;
+    document.getElementById('load-status').className='ready';
+    renderClusteredMarkers(stations);
+    const bounds=new google.maps.LatLngBounds();
+    stations.forEach(s=>bounds.extend({lat:s.lat,lng:s.lng}));
+    map.fitBounds(bounds);
   };
-  reader.readAsText(file);
+  script.onerror=()=>{
+    document.getElementById('loading-overlay').classList.add('hidden');
+    document.getElementById('load-status').textContent='Failed to load stations';
+    document.getElementById('load-status').className='error';
+  };
+  document.head.appendChild(script);
 }
 
-function parseKML(xml) {
-  const statusEl = document.getElementById('kml-status');
-  clearAllMarkers();
-  stations = [];
-
-  xml.querySelectorAll('Placemark').forEach(pm => {
-    const nameEl = pm.querySelector('name');
-    const coordEl = pm.querySelector('Point coordinates') || pm.querySelector('coordinates');
-    if (!coordEl) return;
-    const parts = coordEl.textContent.trim().split(',');
-    if (parts.length < 2) return;
-    const lng = parseFloat(parts[0]), lat = parseFloat(parts[1]);
-    if (isNaN(lat) || isNaN(lng)) return;
-    stations.push({ name: nameEl ? nameEl.textContent.trim() : 'Fuel Station', lat, lng });
-  });
-
-  if (stations.length === 0) {
-    statusEl.textContent = 'No stations found'; statusEl.className = 'error'; return;
-  }
-
-  kmlLoaded = true;
-  document.getElementById('kml-section').style.display = 'none';
-  document.getElementById('tabs').style.display = 'flex';
-  statusEl.textContent = `✓ ${stations.length} stations`;
-
-  // Show clustered markers on map now
-  renderClusteredMarkers(stations);
-
-  // Fit map to data bounds
-  const bounds = new google.maps.LatLngBounds();
-  stations.forEach(s => bounds.extend({ lat: s.lat, lng: s.lng }));
-  map.fitBounds(bounds);
-
-  if (userLatLng) updateNearest();
-  renderSearchResults('');
-  showStatus(`${stations.length} stations loaded`);
+function setupEvents(){
+  document.getElementById('fab-menu').addEventListener('click',openPanel);
+  document.getElementById('panel-close').addEventListener('click',closePanel);
+  document.getElementById('panel-overlay').addEventListener('click',closePanel);
+  document.getElementById('fab-locate').addEventListener('click',locateUser);
+  document.querySelectorAll('.tab-btn').forEach(btn=>btn.addEventListener('click',()=>switchTab(btn.dataset.tab)));
+  document.getElementById('search-input').addEventListener('input',onSearch);
+  document.getElementById('route-go-btn').addEventListener('click',calcRoute);
+  document.getElementById('route-clear-btn').addEventListener('click',clearRoute);
 }
 
-// ─── MARKER CLUSTER ──────────────────────────────────────────────────────────
-function clearAllMarkers() {
-  if (clustererInstance) { clustererInstance.clearMarkers(); clustererInstance = null; }
-  activeMarkers.forEach(m => m.setMap(null));
-  activeMarkers = [];
+function openPanel(){document.getElementById('panel').classList.add('open');document.getElementById('panel-overlay').classList.add('visible');}
+function closePanel(){document.getElementById('panel').classList.remove('open');document.getElementById('panel-overlay').classList.remove('visible');}
+
+function clearAllMarkers(){
+  if(clustererInstance){clustererInstance.clearMarkers();clustererInstance=null;}
+  activeMarkers.forEach(m=>m.setMap(null));
+  activeMarkers=[];
 }
 
-function makeMarker(s, highlighted) {
-  const marker = new google.maps.Marker({
-    position: { lat: s.lat, lng: s.lng },
-    title: s.name,
-    icon: {
-      path: google.maps.SymbolPath.CIRCLE,
-      scale: highlighted ? 9 : 7,
-      fillColor: '#f5a623',
-      fillOpacity: highlighted ? 1 : 0.9,
-      strokeColor: highlighted ? '#fff' : '#0d0d0f',
-      strokeWeight: highlighted ? 2.5 : 2
+function makeMarker(s,highlighted){
+  const m=new google.maps.Marker({
+    position:{lat:s.lat,lng:s.lng},title:s.name,
+    icon:{
+      path:google.maps.SymbolPath.CIRCLE,
+      scale:highlighted?9:7,
+      fillColor:'#f5a623',fillOpacity:highlighted?1:0.9,
+      strokeColor:highlighted?'#fff':'#0d0d0f',strokeWeight:highlighted?2.5:2
     },
-    optimized: true
+    optimized:true
   });
-  marker.addListener('click', () => openInfoWindow(marker, s));
-  return marker;
+  m.addListener('click',()=>openInfoWindow(m,s));
+  return m;
 }
 
-function renderClusteredMarkers(stationList, highlightSet) {
+function renderClusteredMarkers(list,highlightSet){
   clearAllMarkers();
-
-  stationList.forEach(s => {
-    const hl = highlightSet ? highlightSet.has(s) : false;
-    const m = makeMarker(s, hl);
+  list.forEach(s=>{
+    const hl=highlightSet?highlightSet.has(s):false;
+    const m=makeMarker(s,hl);
     m.setMap(map);
     activeMarkers.push(m);
-    s._marker = m; // store reference back
+    s._marker=m;
   });
-
-  // MarkerClusterer from CDN
-  if (window.markerClusterer) {
-    clustererInstance = new window.markerClusterer.MarkerClusterer({
-      map,
-      markers: activeMarkers,
-      renderer: {
-        render({ count, position }) {
-          const size = count < 10 ? 32 : count < 50 ? 38 : 44;
+  if(window.markerClusterer){
+    clustererInstance=new window.markerClusterer.MarkerClusterer({
+      map,markers:activeMarkers,
+      renderer:{
+        render({count,position}){
+          const sz=count<10?34:count<50?40:count<200?46:52;
+          const fs=sz<40?11:sz<46?12:13;
           return new google.maps.Marker({
             position,
-            icon: {
-              url: `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}'><circle cx='${size/2}' cy='${size/2}' r='${size/2-2}' fill='%23f5a623' stroke='%230d0d0f' stroke-width='2'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='Inter,system-ui,sans-serif' font-size='${size < 38 ? 11 : 13}' font-weight='700' fill='%23000'>${count}</text></svg>`,
-              scaledSize: new google.maps.Size(size, size),
-              anchor: new google.maps.Point(size/2, size/2)
+            icon:{
+              url:`data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='${sz}' height='${sz}'><circle cx='${sz/2}' cy='${sz/2}' r='${sz/2-2}' fill='%23f5a623' stroke='%230d0d0f' stroke-width='2'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='system-ui' font-size='${fs}' font-weight='700' fill='%23000'>${count>999?'1k+':count}</text></svg>`,
+              scaledSize:new google.maps.Size(sz,sz),
+              anchor:new google.maps.Point(sz/2,sz/2)
             },
-            zIndex: 1000
+            zIndex:1000
           });
         }
       }
@@ -495,217 +459,173 @@ function renderClusteredMarkers(stationList, highlightSet) {
   }
 }
 
-function openInfoWindow(marker, s) {
-  const dist = userLatLng
-    ? `<div class="info-win-dist">${fmtMiles(haversineMiles(userLatLng.lat(), userLatLng.lng(), s.lat, s.lng))} from you</div>`
-    : '';
-  const navUrl = `https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}&travelmode=driving`;
+function openInfoWindow(marker,s){
+  const dist=userLatLng?`<div class="info-win-dist">📍 ${fmtMiles(haversineMiles(userLatLng.lat(),userLatLng.lng(),s.lat,s.lng))} away</div>`:'';
+  const addr=s.addr?`<div class="info-win-addr">${s.addr}</div>`:'';
+  const fuel=s.fuel?`<div class="info-win-fuel">${s.fuel}</div>`:'';
+  const navUrl=`https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}&travelmode=driving`;
   infoWindow.setContent(`
     <div class="info-win">
       <div class="info-win-name">${s.name}</div>
-      ${dist}
+      ${addr}${fuel}${dist}
       <a class="info-win-btn" href="${navUrl}" target="_blank">Navigate →</a>
     </div>
   `);
-  infoWindow.open(map, marker);
+  infoWindow.open(map,marker);
 }
 
-// ─── GPS ─────────────────────────────────────────────────────────────────────
-function locateUser() {
-  if (!navigator.geolocation) { showStatus('GPS not available'); return; }
-  showStatus('Finding location…', 8000);
-  navigator.geolocation.getCurrentPosition(pos => {
-    userLatLng = new google.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
-    if (!userMarker) {
-      userMarker = new google.maps.Marker({
-        position: userLatLng, map, title: 'You',
-        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 9, fillColor: '#4caf7d', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2.5 },
-        zIndex: 999
+function locateUser(){
+  if(!navigator.geolocation){showStatus('GPS not available');return;}
+  showStatus('Finding location…',8000);
+  navigator.geolocation.getCurrentPosition(pos=>{
+    userLatLng=new google.maps.LatLng(pos.coords.latitude,pos.coords.longitude);
+    if(!userMarker){
+      userMarker=new google.maps.Marker({
+        position:userLatLng,map,title:'You',
+        icon:{path:google.maps.SymbolPath.CIRCLE,scale:10,fillColor:'#4caf7d',fillOpacity:1,strokeColor:'#fff',strokeWeight:2.5},
+        zIndex:999
       });
     } else { userMarker.setPosition(userLatLng); }
     map.panTo(userLatLng);
-    if (map.getZoom() < 10) map.setZoom(12);
+    if(map.getZoom()<10)map.setZoom(12);
     showStatus('Location found');
-    if (kmlLoaded) updateNearest();
-    if (activeTab === 'nearest') openPanel();
-  }, () => showStatus('Location denied'), { enableHighAccuracy: true, timeout: 10000 });
+    updateNearest();
+    openPanel();
+  },()=>showStatus('Location denied'),{enableHighAccuracy:true,timeout:10000});
 }
 
-// ─── NEAREST ─────────────────────────────────────────────────────────────────
-function updateNearest() {
-  if (!userLatLng || !stations.length) return;
-  const ulat = userLatLng.lat(), ulng = userLatLng.lng();
-  const sorted = stations.map(s => ({ ...s, dist: haversineMiles(ulat, ulng, s.lat, s.lng) }))
-    .sort((a, b) => a.dist - b.dist);
-
-  const nearest = sorted[0];
-  document.getElementById('nearest-name').textContent = nearest.name;
-  document.getElementById('nearest-dist').textContent = fmtMiles(nearest.dist) + ' away';
-  const banner = document.getElementById('nearest-banner');
+function updateNearest(){
+  if(!userLatLng||!stations.length)return;
+  const ulat=userLatLng.lat(),ulng=userLatLng.lng();
+  const sorted=stations.map(s=>({...s,dist:haversineMiles(ulat,ulng,s.lat,s.lng)}))
+    .sort((a,b)=>a.dist-b.dist);
+  const n=sorted[0];
+  document.getElementById('nearest-name').textContent=n.name;
+  document.getElementById('nearest-addr').textContent=n.addr||'';
+  document.getElementById('nearest-dist').textContent=fmtMiles(n.dist)+' away';
+  const banner=document.getElementById('nearest-banner');
   banner.classList.add('visible');
-  banner.onclick = () => {
-    map.panTo({ lat: nearest.lat, lng: nearest.lng }); map.setZoom(14);
-    if (nearest._marker) google.maps.event.trigger(nearest._marker, 'click');
+  banner.onclick=()=>{
+    map.panTo({lat:n.lat,lng:n.lng});map.setZoom(14);
+    if(n._marker)google.maps.event.trigger(n._marker,'click');
     closePanel();
   };
-
-  const list = document.getElementById('results-nearest');
-  list.innerHTML = ''; list.className = '';
-  sorted.slice(0, 20).forEach(s => {
-    const item = document.createElement('div');
-    item.className = 'result-item';
-    item.innerHTML = `<span class="result-dist">${fmtMiles(s.dist)}</span><div class="result-name">${s.name}</div><div class="result-meta">Tap to view on map</div>`;
-    item.addEventListener('click', () => {
-      map.panTo({ lat: s.lat, lng: s.lng }); map.setZoom(14);
-      if (s._marker) google.maps.event.trigger(s._marker, 'click');
+  const list=document.getElementById('results-nearest');
+  list.innerHTML='';list.className='';
+  sorted.slice(0,20).forEach(s=>{
+    const item=document.createElement('div');
+    item.className='result-item';
+    item.innerHTML=`<span class="result-dist">${fmtMiles(s.dist)}</span><div class="result-name">${s.name}</div>${s.addr?`<div class="result-addr">${s.addr}</div>`:''}${s.fuel?`<div class="result-fuel">${s.fuel}</div>`:''}`;
+    item.addEventListener('click',()=>{
+      map.panTo({lat:s.lat,lng:s.lng});map.setZoom(14);
+      if(s._marker)google.maps.event.trigger(s._marker,'click');
       closePanel();
     });
     list.appendChild(item);
   });
 }
 
-// ─── SEARCH ──────────────────────────────────────────────────────────────────
-function onSearch(e) { renderSearchResults(e.target.value.trim().toLowerCase()); }
+function onSearch(e){renderSearchResults(e.target.value.trim().toLowerCase());}
 
-function renderSearchResults(query) {
-  const list = document.getElementById('results-search');
-  list.innerHTML = ''; list.className = '';
-  if (!kmlLoaded) { list.innerHTML = '<div class="empty">Load a KML file first</div>'; return; }
-
-  const filtered = query ? stations.filter(s => s.name.toLowerCase().includes(query)) : stations;
-  if (!filtered.length) { list.innerHTML = '<div class="empty">No stations match</div>'; return; }
-
-  const ulat = userLatLng ? userLatLng.lat() : null;
-  const ulng = userLatLng ? userLatLng.lng() : null;
-  const sorted = filtered.map(s => ({ ...s, dist: ulat ? haversineMiles(ulat, ulng, s.lat, s.lng) : null }))
-    .sort((a, b) => a.dist !== null ? a.dist - b.dist : 0);
-
-  sorted.slice(0, 50).forEach(s => {
-    const item = document.createElement('div');
-    item.className = 'result-item';
-    const distStr = s.dist !== null ? `<span class="result-dist">${fmtMiles(s.dist)}</span>` : '';
-    item.innerHTML = `${distStr}<div class="result-name">${s.name}</div>`;
-    item.addEventListener('click', () => {
-      map.panTo({ lat: s.lat, lng: s.lng }); map.setZoom(14);
-      if (s._marker) google.maps.event.trigger(s._marker, 'click');
+function renderSearchResults(q){
+  const list=document.getElementById('results-search');
+  list.innerHTML='';list.className='';
+  if(!q){list.innerHTML=`<div class="empty">Type to search ${stations.length.toLocaleString()} stations</div>`;return;}
+  const filtered=stations.filter(s=>s.name.toLowerCase().includes(q)||s.addr.toLowerCase().includes(q));
+  if(!filtered.length){list.innerHTML='<div class="empty">No stations match</div>';return;}
+  const ulat=userLatLng?userLatLng.lat():null,ulng=userLatLng?userLatLng.lng():null;
+  const sorted=filtered.map(s=>({...s,dist:ulat?haversineMiles(ulat,ulng,s.lat,s.lng):null}))
+    .sort((a,b)=>a.dist!==null?a.dist-b.dist:0);
+  sorted.slice(0,50).forEach(s=>{
+    const item=document.createElement('div');
+    item.className='result-item';
+    const ds=s.dist!==null?`<span class="result-dist">${fmtMiles(s.dist)}</span>`:'';
+    item.innerHTML=`${ds}<div class="result-name">${s.name}</div>${s.addr?`<div class="result-addr">${s.addr}</div>`:''}${s.fuel?`<div class="result-fuel">${s.fuel}</div>`:''}`;
+    item.addEventListener('click',()=>{
+      map.panTo({lat:s.lat,lng:s.lng});map.setZoom(14);
+      if(s._marker)google.maps.event.trigger(s._marker,'click');
       closePanel();
     });
     list.appendChild(item);
   });
 }
 
-// ─── ROUTE ───────────────────────────────────────────────────────────────────
-function calcRoute() {
-  const startInput = document.getElementById('route-start').value.trim();
-  const endInput = document.getElementById('route-end').value.trim();
-  if (!endInput) { showStatus('Enter a destination'); return; }
-  const origin = startInput || userLatLng;
-  if (!origin) { showStatus('Enter a start or get GPS'); return; }
-
-  showStatus('Calculating route…', 8000);
-  directionsService.route({
-    origin, destination: endInput, travelMode: google.maps.TravelMode.DRIVING
-  }, (result, status) => {
-    if (status !== 'OK') { showStatus('Route not found'); return; }
+function calcRoute(){
+  const si=document.getElementById('route-start').value.trim();
+  const ei=document.getElementById('route-end').value.trim();
+  if(!ei){showStatus('Enter a destination');return;}
+  const origin=si||userLatLng;
+  if(!origin){showStatus('Enter a start or use GPS');return;}
+  showStatus('Calculating route…',8000);
+  directionsService.route({origin,destination:ei,travelMode:google.maps.TravelMode.DRIVING},(result,status)=>{
+    if(status!=='OK'){showStatus('Route not found');return;}
     directionsRenderer.setDirections(result);
-
-    routePath = [];
-    result.routes[0].legs.forEach(leg => leg.steps.forEach(step => step.path.forEach(pt => routePath.push(pt))));
-
-    const corridorMiles = parseFloat(document.getElementById('corridor-miles').value);
-    showRouteStations(corridorMiles);
-    document.getElementById('route-clear-btn').style.display = 'block';
+    routePath=[];
+    result.routes[0].legs.forEach(leg=>leg.steps.forEach(step=>step.path.forEach(pt=>routePath.push(pt))));
+    const mi=parseFloat(document.getElementById('corridor-miles').value);
+    showRouteStations(mi);
+    document.getElementById('route-clear-btn').style.display='block';
     showStatus('Route loaded');
   });
 }
 
-function minDistToRoute(lat, lng) {
-  let min = Infinity;
-  for (const pt of routePath) {
-    const d = haversineMiles(lat, lng, pt.lat(), pt.lng());
-    if (d < min) min = d;
-  }
+function minDistToRoute(lat,lng){
+  let min=Infinity;
+  for(const pt of routePath){const d=haversineMiles(lat,lng,pt.lat(),pt.lng());if(d<min)min=d;}
   return min;
 }
 
-function showRouteStations(corridorMiles) {
-  const list = document.getElementById('results-route');
-  list.innerHTML = ''; list.className = '';
-
-  const ulat = userLatLng ? userLatLng.lat() : null;
-  const ulng = userLatLng ? userLatLng.lng() : null;
-
-  const withDist = stations.map(s => ({
-    ...s,
-    routeDist: minDistToRoute(s.lat, s.lng),
-    userDist: ulat ? haversineMiles(ulat, ulng, s.lat, s.lng) : null
-  }));
-
-  const nearRoute = withDist.filter(s => s.routeDist <= corridorMiles)
-    .sort((a, b) => a.routeDist - b.routeDist);
-
-  // Only render markers for stations near the route
-  const nearSet = new Set(nearRoute.map(s => {
-    const orig = stations.find(o => o.lat === s.lat && o.lng === s.lng);
-    return orig;
-  }));
-  renderClusteredMarkers(nearRoute, nearSet);
-
-  if (!nearRoute.length) {
-    list.innerHTML = `<div class="empty">No stations within ${corridorMiles} mi of route</div>`; return;
-  }
-
-  nearRoute.forEach(s => {
-    const item = document.createElement('div');
-    item.className = 'result-item on-route';
-    const distStr = s.userDist !== null ? `<span class="result-dist">${fmtMiles(s.userDist)} from you</span>` : '';
-    item.innerHTML = `${distStr}<div class="result-name">${s.name}</div><div class="result-meta">${fmtMiles(s.routeDist)} off route</div>`;
-    item.addEventListener('click', () => {
-      map.panTo({ lat: s.lat, lng: s.lng }); map.setZoom(14);
-      if (s._marker) google.maps.event.trigger(s._marker, 'click');
+function showRouteStations(corridorMiles){
+  const list=document.getElementById('results-route');
+  list.innerHTML='';list.className='';
+  const ulat=userLatLng?userLatLng.lat():null,ulng=userLatLng?userLatLng.lng():null;
+  const near=stations.map(s=>({...s,routeDist:minDistToRoute(s.lat,s.lng),userDist:ulat?haversineMiles(ulat,ulng,s.lat,s.lng):null}))
+    .filter(s=>s.routeDist<=corridorMiles)
+    .sort((a,b)=>a.routeDist-b.routeDist);
+  const nearSet=new Set(near);
+  renderClusteredMarkers(near,nearSet);
+  if(!near.length){list.innerHTML=`<div class="empty">No stations within ${corridorMiles} mi of route</div>`;return;}
+  near.forEach(s=>{
+    const item=document.createElement('div');
+    item.className='result-item on-route';
+    const ds=s.userDist!==null?`<span class="result-dist">${fmtMiles(s.userDist)}</span>`:'';
+    item.innerHTML=`${ds}<div class="result-name">${s.name}</div>${s.addr?`<div class="result-addr">${s.addr}</div>`:''}${s.fuel?`<div class="result-fuel">${s.fuel}</div>`:''}`;
+    item.addEventListener('click',()=>{
+      map.panTo({lat:s.lat,lng:s.lng});map.setZoom(14);
+      if(s._marker)google.maps.event.trigger(s._marker,'click');
       closePanel();
     });
     list.appendChild(item);
   });
 }
 
-function clearRoute() {
-  directionsRenderer.setDirections({ routes: [] });
-  routePath = [];
-  // Restore full clustered map
-  if (kmlLoaded) renderClusteredMarkers(stations);
-  document.getElementById('results-route').innerHTML = '<div class="empty">Enter a route to see nearby stations</div>';
-  document.getElementById('route-clear-btn').style.display = 'none';
+function clearRoute(){
+  directionsRenderer.setDirections({routes:[]});
+  routePath=[];
+  renderClusteredMarkers(stations);
+  document.getElementById('results-route').innerHTML='<div class="empty">Enter a route to see nearby stations</div>';
+  document.getElementById('route-clear-btn').style.display='none';
   showStatus('Route cleared');
 }
 
-// ─── TABS ─────────────────────────────────────────────────────────────────────
-function switchTab(tab) {
-  activeTab = tab;
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
-  ['nearest','search','route'].forEach(t => {
-    const el = document.getElementById(`tab-${t}`);
-    el.style.display = t === tab ? 'flex' : 'none';
-    el.style.flexDirection = 'column';
-    el.style.gap = '10px';
+function switchTab(tab){
+  activeTab=tab;
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+  ['nearest','search','route'].forEach(t=>{
+    const el=document.getElementById(`tab-${t}`);
+    el.style.display=t===tab?'flex':'none';
   });
 }
 
-window.initMap = initMap;
+window.initMap=initMap;
 </script>
 
-<!-- MarkerClusterer library -->
 <script src="https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js"></script>
-
-<!-- Google Maps — your key is already set below -->
-<script
-  src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCGYMaGaZJ3Nsb-r-AmFZfp27_bHoibnhI&libraries=geometry&callback=initMap"
-  async defer>
-</script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCGYMaGaZJ3Nsb-r-AmFZfp27_bHoibnhI&libraries=geometry&callback=initMap" async defer></script>
 
 <script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  if('serviceWorker' in navigator){
+    window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
   }
 </script>
 </body>
