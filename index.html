@@ -286,7 +286,8 @@ let stations = [];
 let activeMarkers = [];
 let stopMarkers = [];
 let routePath = [];
-let routeDistances = []; // cumulative miles along route path
+let routeDistances = [];
+let routeDestination = ''; // cumulative miles along route path
 let activeTab = 'nearest';
 
 // ── VEHICLE SETTINGS ─────────────────────────────────────────────────────────
@@ -452,7 +453,7 @@ function makeMarker(s,highlighted){
       strokeColor:highlighted?'#fff':'#0d0d0f',strokeWeight:highlighted?2.5:2},
     optimized:true
   });
-  m.addListener('click',()=>openInfoWindow(m,s));
+  m.addListener('click',()=>openInfoWindow(m,s,false));
   return m;
 }
 
@@ -495,12 +496,18 @@ function renderClusteredMarkers(list,highlightSet){
   }
 }
 
-function openInfoWindow(marker,s){
+function openInfoWindow(marker,s,asWaypoint){
   const dist=userLatLng?`<div class="info-win-dist">📍 ${fmtMiles(haversineMiles(userLatLng.lat(),userLatLng.lng(),s.lat,s.lng))} away</div>`:'';
   const addr=s.addr?`<div class="info-win-addr">${s.addr}</div>`:'';
   const fuel=s.fuel?`<div class="info-win-fuel">${s.fuel}</div>`:'';
-  const nav=`https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}&travelmode=driving`;
-  infoWindow.setContent(`<div class="info-win"><div class="info-win-name">${s.name}</div>${addr}${fuel}${dist}<a class="info-win-btn" href="${nav}" target="_blank">Navigate →</a></div>`);
+  let nav;
+  if(asWaypoint&&routeDestination){
+    nav=`https://www.google.com/maps/dir/?api=1&origin=My+Location&destination=${encodeURIComponent(routeDestination)}&waypoints=${s.lat},${s.lng}&travelmode=driving`;
+  } else {
+    nav=`https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}&travelmode=driving`;
+  }
+  const btnLabel=asWaypoint&&routeDestination?'Add as Waypoint →':'Navigate →';
+  infoWindow.setContent(`<div class="info-win"><div class="info-win-name">${s.name}</div>${addr}${fuel}${dist}<a class="info-win-btn" href="${nav}" target="_blank">${btnLabel}</a></div>`);
   infoWindow.open(map,marker);
 }
 
@@ -577,6 +584,7 @@ function calcRoute(){
     openSettings();
     return;
   }
+  routeDestination=ei;
   showStatus('Calculating route…',8000);
   directionsService.route({origin,destination:ei,travelMode:google.maps.TravelMode.DRIVING},(result,status)=>{
     if(status!=='OK'){showStatus('Route not found');return;}
@@ -697,7 +705,7 @@ function showRouteStations(corridorMiles,totalMiles){
       item.className='result-item suggested-stop';
       const ds=s.userDist!==null?`<span class="result-dist">${fmtMiles(s.userDist)}</span>`:'';
       item.innerHTML=`${ds}<div class="stop-badge">Stop ${s.stopNum} · Mile ${Math.round(s.mileageAtStop)}</div><div class="result-name">${s.name}</div>${s.addr?`<div class="result-addr">${s.addr}</div>`:''}${s.fuel?`<div class="result-fuel">${s.fuel}</div>`:''}${s.routeDist>0.1?`<div class="stop-meta">+${fmtMiles(s.routeDist)} off route</div>`:'<div class="stop-meta">On route</div>'}`;
-      item.addEventListener('click',()=>{map.panTo({lat:s.lat,lng:s.lng});map.setZoom(14);if(s._marker)google.maps.event.trigger(s._marker,'click');closePanel();});
+      item.addEventListener('click',()=>{map.panTo({lat:s.lat,lng:s.lng});map.setZoom(14);if(s._marker)openInfoWindow(s._marker,s,true);closePanel();});
       list.appendChild(item);
     });
   }
@@ -720,7 +728,7 @@ function showRouteStations(corridorMiles,totalMiles){
 
 function clearRoute(){
   directionsRenderer.setDirections({routes:[]});
-  routePath=[];routeDistances=[];
+  routePath=[];routeDistances=[];routeDestination='';
   renderClusteredMarkers(stations);
   clearStopMarkers();
   document.getElementById('results-route').innerHTML='<div class="empty">Enter a route to see nearby stations</div>';
