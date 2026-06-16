@@ -610,8 +610,15 @@ function showRouteStations(corridorMiles,totalMiles){
 
   const ul=userLatLng?userLatLng.lat():null,ug=userLatLng?userLatLng.lng():null;
 
-  // For each station, find its closest point on the route and its mileage position
-  const near=stations.map(s=>{
+  // Bounding box pre-filter — eliminates ~95% of stations before any trig
+  const latPad=corridorMiles/69, lngPad=corridorMiles/55;
+  let minLat=Infinity,maxLat=-Infinity,minLng=Infinity,maxLng=-Infinity;
+  for(const pt of routePath){const la=pt.lat(),lo=pt.lng();if(la<minLat)minLat=la;if(la>maxLat)maxLat=la;if(lo<minLng)minLng=lo;if(lo>maxLng)maxLng=lo;}
+  minLat-=latPad;maxLat+=latPad;minLng-=lngPad;maxLng+=lngPad;
+  const boxCandidates=stations.filter(s=>s.lat>=minLat&&s.lat<=maxLat&&s.lng>=minLng&&s.lng<=maxLng);
+
+  // Now only scan route points for the small box candidate set
+  const near=boxCandidates.map(s=>{
     let minDist=Infinity,closestMileage=0;
     for(let i=0;i<routePath.length;i++){
       const d=haversineMiles(s.lat,s.lng,routePath[i].lat(),routePath[i].lng());
