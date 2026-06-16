@@ -1,4 +1,4 @@
-const CACHE = 'fuel-finder-v2';
+const CACHE = 'fuel-finder-v3';
 const ASSETS = ['./index.html', './manifest.json', './stations.js'];
 
 self.addEventListener('install', e => {
