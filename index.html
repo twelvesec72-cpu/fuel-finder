@@ -313,6 +313,9 @@ let userMarker = null, userLatLng = null;
 let stations = [];
 let activeMarkers = [];
 let stopMarkers = [];
+let viewportCullingEnabled = true;
+let boundsChangeTimer = null;
+let routeActive = false;
 let routePath = [];
 let routeDistances = [];
 let routeDestination = ''; // cumulative miles along route path
@@ -365,6 +368,12 @@ function initMap(){
   directionsRenderer.setMap(map);
   setupEvents();
   loadStations();
+  // Viewport culling — rebuild clusterer on pan/zoom
+  map.addListener('bounds_changed', ()=>{
+    if(!viewportCullingEnabled||routeActive||!stations.length) return;
+    clearTimeout(boundsChangeTimer);
+    boundsChangeTimer=setTimeout(renderViewportMarkers, 300);
+  });
 }
 
 
@@ -375,6 +384,22 @@ function stationMatchesOctane(s){
   return (s.maxOct||0)>=min;
 }
 
+function renderViewportMarkers(){
+  if(!map||!stations.length) return;
+  const bounds=map.getBounds();
+  if(!bounds) return;
+  // Pad bounds by ~20% to pre-load pins just outside viewport
+  const ne=bounds.getNorthEast(), sw=bounds.getSouthWest();
+  const latPad=(ne.lat()-sw.lat())*0.2;
+  const lngPad=(ne.lng()-sw.lng())*0.2;
+  const visible=stations.filter(s=>
+    stationMatchesOctane(s)&&
+    s.lat>=sw.lat()-latPad&&s.lat<=ne.lat()+latPad&&
+    s.lng>=sw.lng()-lngPad&&s.lng<=ne.lng()+lngPad
+  );
+  renderClusteredMarkers(visible);
+}
+
 function loadStations(){
   const s=document.createElement('script');
   s.src='stations.js';
@@ -383,15 +408,17 @@ function loadStations(){
     document.getElementById('loading-overlay').classList.add('hidden');
     document.getElementById('load-status').textContent=`✓ ${stations.length.toLocaleString()}`;
     document.getElementById('load-status').className='ready';
-    const visibleStations=stations.filter(stationMatchesOctane);
-    renderClusteredMarkers(visibleStations);
+    // Fit map to full data first, then viewport culling takes over
+    const allVisible=stations.filter(stationMatchesOctane);
+    const b=new google.maps.LatLngBounds();
+    allVisible.forEach(s=>b.extend({lat:s.lat,lng:s.lng}));
+    map.fitBounds(b);
+    // Wait for fitBounds to settle then render viewport
+    google.maps.event.addListenerOnce(map,'idle',renderViewportMarkers);
     // Auto-open settings on first visit
     if(!localStorage.getItem('puregas_vehicle')){
       setTimeout(()=>openSettings(true),600);
     }
-    const b=new google.maps.LatLngBounds();
-    visibleStations.forEach(s=>b.extend({lat:s.lat,lng:s.lng}));
-    map.fitBounds(b);
   };
   s.onerror=()=>{
     document.getElementById('loading-overlay').classList.add('hidden');
@@ -490,7 +517,7 @@ function saveSettingsFromModal(){
   closeSettings();
   showStatus(`Saved — ${Math.round(usableRange())} mi usable range`);
   // Re-render map with new octane filter
-  if(stations.length) renderClusteredMarkers(stations.filter(stationMatchesOctane));
+  if(stations.length) renderViewportMarkers();
 }
 
 // ── MARKERS ───────────────────────────────────────────────────────────────────
@@ -649,6 +676,8 @@ function calcRoute(){
     return;
   }
   routeDestination=ei;
+  routeActive=true;
+  viewportCullingEnabled=false;
   showStatus('Calculating route…',8000);
   directionsService.route({origin,destination:ei,travelMode:google.maps.TravelMode.DRIVING},(result,status)=>{
     if(status!=='OK'){showStatus('Route not found');return;}
@@ -801,8 +830,10 @@ function showRouteStations(corridorMiles,totalMiles){
 function clearRoute(){
   directionsRenderer.setDirections({routes:[]});
   routePath=[];routeDistances=[];routeDestination='';
-  renderClusteredMarkers(stations.filter(stationMatchesOctane));
+  routeActive=false;
+  viewportCullingEnabled=true;
   clearStopMarkers();
+  renderViewportMarkers();
   document.getElementById('results-route').innerHTML='<div class="empty">Enter a route to see nearby stations</div>';
   document.getElementById('route-clear-btn').style.display='none';
   document.getElementById('range-summary').classList.remove('visible');
