@@ -155,13 +155,7 @@
     .info-win-btn{display:block;width:100%;padding:10px;background:var(--accent);color:#000;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;text-align:center;text-decoration:none;}
 
     @media(max-width:400px){:root{--panel-w:100%;}}
-    .octane-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-    .octane-check{display:flex;align-items:center;gap:10px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:border-color .15s;}
-    .octane-check.selected{border-color:var(--accent);background:#1f1a0f;}
-    .octane-check input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent);flex-shrink:0;cursor:pointer;}
-    .octane-label{display:flex;flex-direction:column;gap:1px;}
-    .octane-name{font-size:13px;font-weight:700;color:var(--text);}
-    .octane-sub{font-size:11px;color:var(--muted);}
+
   </style>
 </head>
 <body>
@@ -219,15 +213,12 @@
           <div class="settings-hint" id="range-hint">Enter MPG and tank size to see your range</div>
         </div>
         <div class="settings-row">
-          <label>Octane Grades I Need</label>
-          <div class="octane-grid" id="octane-grid">
-            <label class="octane-check selected" data-oct="87"><input type="checkbox" value="87" checked /><div class="octane-label"><span class="octane-name">87–88</span><span class="octane-sub">Regular</span></div></label>
-            <label class="octane-check selected" data-oct="89"><input type="checkbox" value="89" checked /><div class="octane-label"><span class="octane-name">89–90</span><span class="octane-sub">Mid-Grade</span></div></label>
-            <label class="octane-check selected" data-oct="91"><input type="checkbox" value="91" checked /><div class="octane-label"><span class="octane-name">91–94</span><span class="octane-sub">Premium</span></div></label>
-            <label class="octane-check" data-oct="95"><input type="checkbox" value="95" /><div class="octane-label"><span class="octane-name">95–98</span><span class="octane-sub">Super Premium</span></div></label>
-            <label class="octane-check" data-oct="99"><input type="checkbox" value="99" /><div class="octane-label"><span class="octane-name">99–119</span><span class="octane-sub">Racing</span></div></label>
-            <label class="octane-check" data-oct="86"><input type="checkbox" value="86" /><div class="octane-label"><span class="octane-name">70–86</span><span class="octane-sub">Low / Altitude</span></div></label>
+          <label>Minimum Octane Required</label>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <input type="range" id="set-octane" min="85" max="93" step="1" style="flex:1;accent-color:var(--accent);" />
+            <span id="octane-label" style="font-size:22px;font-weight:800;color:var(--accent);min-width:36px;text-align:right;">87</span>
           </div>
+          <div id="octane-hint" style="font-size:11px;color:var(--muted);">Only show stations carrying 87 or higher</div>
         </div>
         <button class="btn btn-accent" id="settings-save-btn">Save Vehicle</button>
         <button class="btn btn-ghost" id="settings-cancel-btn">Skip for now</button>
@@ -328,7 +319,7 @@ let routeDestination = ''; // cumulative miles along route path
 let activeTab = 'nearest';
 
 // ── VEHICLE SETTINGS ─────────────────────────────────────────────────────────
-const DEFAULT_SETTINGS = { mpg: 25, tank: 15, reserve: 25, octanes: ['87','89','91'] };
+const DEFAULT_SETTINGS = { mpg: 25, tank: 15, reserve: 25, minOctane: 87 };
 function loadSettings() {
   try {
     const s = JSON.parse(localStorage.getItem('puregas_vehicle') || '{}');
@@ -391,16 +382,15 @@ function darkMapStyle(){return[
 // ── LOAD STATIONS ─────────────────────────────────────────────────────────────
 // Octane filter — returns true if station carries at least one selected grade
 function stationMatchesOctane(s){
-  const wanted=(vehicle.octanes&&vehicle.octanes.length)?vehicle.octanes:DEFAULT_SETTINGS.octanes;
-  if(!s.grades||!s.grades.length) return false; // no grade data — exclude
-  return s.grades.some(g=>wanted.includes(g));
+  const min=vehicle.minOctane||DEFAULT_SETTINGS.minOctane;
+  return (s.maxOct||0)>=min;
 }
 
 function loadStations(){
   const s=document.createElement('script');
   s.src='stations.js';
   s.onload=()=>{
-    stations=STATIONS_DATA.map(d=>({name:d[0],lat:d[1],lng:d[2],addr:d[3],fuel:d[4],grades:d[5]||[],_marker:null}));
+    stations=STATIONS_DATA.map(d=>({name:d[0],lat:d[1],lng:d[2],addr:d[3],fuel:d[4],maxOct:d[5]||0,_marker:null}));
     document.getElementById('loading-overlay').classList.add('hidden');
     document.getElementById('load-status').textContent=`✓ ${stations.length.toLocaleString()}`;
     document.getElementById('load-status').className='ready';
@@ -438,6 +428,7 @@ function setupEvents(){
   document.getElementById('set-reserve').addEventListener('input',updateReserveLabel);
   document.getElementById('set-mpg').addEventListener('input',updateRangePreview);
   document.getElementById('set-tank').addEventListener('input',updateRangePreview);
+  document.getElementById('set-octane').addEventListener('input',updateOctaneLabel);
 }
 
 function openPanel(){document.getElementById('panel').classList.add('open');document.getElementById('panel-overlay').classList.add('visible');}
@@ -460,21 +451,10 @@ function openSettings(firstTime){
   document.getElementById('set-mpg').value=vehicle.mpg||'';
   document.getElementById('set-tank').value=vehicle.tank||'';
   document.getElementById('set-reserve').value=vehicle.reserve||25;
-  // Populate octane checkboxes
-  const saved=vehicle.octanes||DEFAULT_SETTINGS.octanes;
-  document.querySelectorAll('#octane-grid input[type=checkbox]').forEach(cb=>{
-    const checked=saved.includes(cb.value);
-    cb.checked=checked;
-    cb.closest('.octane-check').classList.toggle('selected',checked);
-  });
-  // Checkbox toggle highlight
-  document.querySelectorAll('#octane-grid .octane-check').forEach(lbl=>{
-    lbl.onclick=()=>{
-      const cb=lbl.querySelector('input');
-      // toggled by browser naturally, just sync style
-      setTimeout(()=>lbl.classList.toggle('selected',cb.checked),0);
-    };
-  });
+  // Populate octane slider
+  const minOct=vehicle.minOctane||DEFAULT_SETTINGS.minOctane;
+  document.getElementById('set-octane').value=minOct;
+  updateOctaneLabel();
   updateReserveLabel();
   updateRangePreview();
   document.getElementById('settings-modal').classList.add('open');
@@ -486,6 +466,13 @@ function updateReserveLabel(){
   document.getElementById('reserve-label').textContent=r+'%';
   updateRangePreview();
 }
+function updateOctaneLabel(){
+  const v=parseInt(document.getElementById('set-octane').value);
+  document.getElementById('octane-label').textContent=v;
+  const labels={85:'Low / Altitude',86:'Low / Altitude',87:'Regular',88:'Regular',89:'Mid-Grade',90:'Mid-Grade',91:'Premium',92:'Premium',93:'Premium'};
+  document.getElementById('octane-hint').textContent=`Only show stations carrying ${v}+ octane (${labels[v]||''})`;
+}
+
 function updateRangePreview(){
   const r=parseInt(document.getElementById('set-reserve').value)||25;
   const mpg=parseFloat(document.getElementById('set-mpg').value)||0;
@@ -508,9 +495,8 @@ function saveSettingsFromModal(){
   const tank=parseFloat(document.getElementById('set-tank').value);
   const reserve=parseInt(document.getElementById('set-reserve').value);
   if(!mpg||!tank||mpg<1||tank<1){showStatus('Enter valid MPG and tank size');return;}
-  const octanes=[...document.querySelectorAll('#octane-grid input[type=checkbox]:checked')].map(cb=>cb.value);
-  if(!octanes.length){showStatus('Select at least one octane grade');return;}
-  vehicle={mpg,tank,reserve,octanes};
+  const minOctane=parseInt(document.getElementById('set-octane').value)||87;
+  vehicle={mpg,tank,reserve,minOctane};
   saveSettings(vehicle);
   closeSettings();
   showStatus(`Saved — ${Math.round(usableRange())} mi usable range`);
